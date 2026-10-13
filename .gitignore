@@ -1,0 +1,70 @@
+# Private originals, privacy review data, and local exports
+/.private/
+/.privacy-review/
+/private/
+/secrets/
+*.original.*
+*.backup.*
+*.bak
+*.tmp
+*.temp
+*.log
+~$*
+*.wbk
+*.asd
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+secrets*.json
+id_rsa*
+id_ed25519*
+.ssh/
+
+# Editors and operating system files
+.vscode/
+.idea/
+.vs/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Compiled files, dependency caches, and generated output
+build/
+dist/
+out/
+Debug/
+Release/
+node_modules/
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.a
+*.lib
+*.pdb
+*.class
+*.d
+*.zip
+*.7z
+*.rar
+*.tar
+*.gz
+
+# Personal lab reports need an explicit privacy review before publication
+/exp*/report/*
+!/exp*/report/.gitkeep
+
+# Lab instruction documents in exp*/doc remain eligible for tracking.
