@@ -36,3 +36,20 @@
 
 当前提供 `plain`、`left_hand_reach`、`left_hand_place` 三个姿势。
 调用不存在的姿势会明确报错，不会用普通姿势冒充。
+
+持续小动作参考同一提交的 `custom/characters/pi_creature_scene.py`：
+原作者的 `seconds_to_blink = 3`、随机选择角色调用 `Blink`，
+以及通过 `pi.animate.look_at(...)` 播放视线过渡。
+本项目继续调用原版 `PiCreature.look()`、`PiCreature.blink()` 和 `Blink`，
+眼睛的移动使用 Manim 的方法动画与 `smooth`，眨眼使用 `there_and_back`。
+新增的独立计时、每个角色的三套扫视，以及仅作用于脸部的组合层是本项目的改动。
+
+原作者场景的自动眨眼主要发生在 `wait()` 中；本项目通过场景时钟 updater
+持续调度，使眨眼和扫视在 `wait()` 与手部 `play()` 期间都能运行。
+虚拟脸部使用原版动作后将眼睛与睫毛点数据映射回角色，不写入身体或嘴巴。
+开启小动作后的手部姿势准备会临时使用睁眼参考，避免闭眼改变整体边界高度
+而影响原作者的姿势匹配；准备完成后恢复当前可见脸部。
+
+眨眼间隔采用 3–5 秒随机值，均值约为每分钟 15 次，仅作为动画节奏设置。
+参考 [MedlinePlus 的眨眼说明](https://www.medlineplus.gov/ency/anatomyvideos/000010.htm)。
+单次 0.25 秒、扫视方向与观察幅度是本项目的动画设计参数。

@@ -83,6 +83,18 @@ class _PublicSVG:
         fixed_parts = [(self.eyes, self.eyes.copy()), (self.mouth, self.mouth.copy())]
         if hasattr(self, "eyelashes"):
             fixed_parts.append((self.eyelashes, self.eyelashes.copy()))
+        if getattr(self, "_ambient_face_active", False):
+            # The author's height/eye alignment must use an open-eyed pose:
+            # a blink temporarily shrinks the face bounds. Normalize only the
+            # preparation copy, then restore its current visible face below.
+            reference = self.__class__()
+            reference.scale(self.body.get_height() / reference.body.get_height())
+            if self.is_flipped() != reference.is_flipped():
+                reference.flip()
+            reference.shift(self.mouth.get_center() - reference.mouth.get_center())
+            self.eyes.become(reference.eyes)
+            if hasattr(self, "eyelashes"):
+                self.eyelashes.become(reference.eyelashes)
         super().change_mode(mode)
         _, _, arm = source_geometry()
         target_points = self.body.get_points().copy()

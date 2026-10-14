@@ -111,3 +111,51 @@ python -m pi_family.verify_hand_motion
 - 已检查目标 SVG 的五个其他部件，以及身体路径中手臂之外的前后段保持原样。
 - 已实际渲染左手动作的 95 帧，并逐像素比较：四个左手区域之外的画面完全不变。
   GIF 使用同一调色板，保持静止区域的颜色一致。
+
+## 持续眨眼与独立扫视
+
+```powershell
+manimgl pi_family/preview_scene.py FamilyIdleDemo
+python -m pi_family.render_idle_preview
+python -m pi_family.verify_idle_motion
+```
+
+`FamilyIdleDemo` 从开始到结束持续运行眼睛小动作，先等待 4 秒，
+再播放保留的 2 秒放置动作，随后再等待 7 秒。窗口进入交互观看后计时仍继续。
+`LeftHandPlacementDemo` 仍保留原来仅动左手的演示。
+第二条命令以固定种子 42 导出 `pi_family/preview/family_idle.gif`，便于报告复现。
+
+- 每个角色独立随机每 3–5 秒开始一次眨眼，单次 0.25 秒。
+  所有角色采用同样的闭合与恢复曲线，女性睫毛一起眨眼。
+- 爸爸、妈妈、儿子和女儿各有 3 套不同的短扫视，总共 12 套。
+  每套包含两次短暂观察并回到中间，视线间停留 0.7–1.3 秒，
+  两套扫视间休息 3–5.5 秒。孩子的瞳孔观察幅度略大。
+- 三套扫视分别打乱顺序播放，每轮都会用到全部版本。
+  四个角色各自使用独立随机流，眨眼随机流也与扫视随机流分开。
+- 眼睛动画在场景时钟上持续更新，放置动作不会停止或重新计时。
+  原有手部动作函数及两份手部 SVG 保持不变。
+
+复用时，先把角色加入场景，然后开启小动作：
+
+```python
+from pi_family import enable_idle, make_family, place_left_hand
+
+family = make_family()
+self.add(family)
+idle = enable_idle(self, family)        # 每次播放都随机
+# idle = enable_idle(self, family, seed=42)  # 报告录制时可复现
+self.wait(4)
+place_left_hand(self, family)
+self.wait(8)
+# idle.stop()  # 需要结束小动作时调用，会恢复睁眼状态
+```
+
+也可以传入单个角色。整体镜像、移动或缩放后，眼睛和睫毛会继续跟随。
+小动作开启期间由计时器控制脸部；需要手动控制视线或眨眼时，先 `idle.stop()`。
+时间范围通过 `IdleSettings` 配置，扫视方向在 `idle_motion.py` 的 `GAZE_VERSIONS` 中。
+
+验证包含每个角色 60 秒的计时、固定种子的逐帧与跳时复现、
+所有扫视版本覆盖、镜像眨眼、手部动作在闭眼时的轨迹兼容，以及计时不中断。
+额外运行原来的 `verify_hand_motion`，确认仅手部演示保持原行为。
+已实际渲染约 13 秒、392 帧的预览，检查了不同角色的眨眼、扫视及与放置动作同播；
+ManimGL 场景命令也已执行验证。
