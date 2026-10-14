@@ -4,7 +4,10 @@ from pathlib import Path
 
 import numpy as np
 from manimlib import DOWN, Line, UP, VGroup
+from manimlib.animation.transform import _MethodAnimation
+from manimlib.mobject.mobject import _AnimationBuilder
 
+from .hand_poses import POSE_FILES, body_points_for_character, source_geometry
 from .upstream.pi_creature import BabyPiCreature, PiCreature, Randolph
 from .upstream.pi_creature_animations import Blink
 
@@ -16,6 +19,32 @@ SON_COLOR = "#77C9EF"
 DAUGHTER_COLOR = "#F27983"
 
 
+class _PoseAnimation(_MethodAnimation):
+    def interpolate_submobject(self, submob, start, target, alpha):
+        super().interpolate_submobject(submob, start, target, alpha)
+        original_points = start.get_points()
+        target_points = target.get_points()
+        if original_points.shape == target_points.shape and len(original_points):
+            unchanged = np.all(original_points == target_points, axis=1)
+            if unchanged.any():
+                points = submob.get_points().copy()
+                # Ordinary float32 lerp can round even identical endpoints.
+                # Stationary vertices are copied exactly on every frame.
+                points[unchanged] = original_points[unchanged]
+                submob.set_points(points)
+
+    def finish(self):
+        super().finish()
+        # Recent ManimGL skips align_data_and_family for already aligned poses.
+        # Keep the mode name in sync without changing any interpolation geometry.
+        self.mobject.mode = self.target_mobject.mode
+
+
+class _PoseBuilder(_AnimationBuilder):
+    def build(self):
+        return _PoseAnimation(self.mobject, self.methods, **self.anim_args)
+
+
 class _PublicSVG:
     """Adapt the public six-part SVG to the author's current twelve-part loader.
 
@@ -23,13 +52,21 @@ class _PublicSVG:
     looking, flipping, and Baby proportions are handled by the upstream code.
     """
 
-    def get_svg_file_path(self, mode):
+    def __init__(self, mode="plain", **kwargs):
+        super().__init__(mode=mode, **kwargs)
         if mode != "plain":
+            # Body-only retopology: the author subdivides SVG curves according
+            # to length. A stretched arm would otherwise redistribute points
+            # on the stationary legs and right side during interpolation.
+            self.body.set_points(body_points_for_character(mode, self))
+
+    def get_svg_file_path(self, mode):
+        if mode not in POSE_FILES:
             raise ValueError(
-                "Only the original public 'plain' SVG is bundled. "
-                "An additional original SVG is required for this pose."
+                f"Available SVG poses: {', '.join(POSE_FILES)}. "
+                "Other poses require an additional SVG."
             )
-        return str(ASSETS / "PiCreatures_plain.svg")
+        return str(ASSETS / POSE_FILES[mode])
 
     def init_structure(self):
         left_eye, right_eye, left_pupil, right_pupil, body, mouth = self.submobjects
@@ -40,6 +77,32 @@ class _PublicSVG:
         self.mouth = mouth
         self.mouth.insert_n_curves(10)
         self.set_submobjects([self.eyes, self.body, self.mouth])
+
+    def change_mode(self, mode):
+        body_points = self.body.get_points().copy()
+        fixed_parts = [(self.eyes, self.eyes.copy()), (self.mouth, self.mouth.copy())]
+        if hasattr(self, "eyelashes"):
+            fixed_parts.append((self.eyelashes, self.eyelashes.copy()))
+        super().change_mode(mode)
+        _, _, arm = source_geometry()
+        target_points = self.body.get_points().copy()
+        # Preserve non-arm points exactly, including after mirroring or scaling.
+        target_points[:arm.start] = body_points[:arm.start]
+        target_points[arm.stop:] = body_points[arm.stop:]
+        # Preserve the original zero-length shoulder marker as well as both
+        # attachment tangents. Perturbing a marker changes path segmentation.
+        target_points[arm.start:arm.start + 4] = body_points[arm.start:arm.start + 4]
+        target_points[arm.stop - 2:arm.stop] = body_points[arm.stop - 2:arm.stop]
+        self.body.set_points(target_points)
+        for part, original in fixed_parts:
+            part.become(original)
+        return self
+
+    def change(self, new_mode, look_at=None):
+        animation = _PoseBuilder(self).change_mode(new_mode)
+        if look_at is not None:
+            animation = animation.look_at(look_at)
+        return animation
 
 
 def _make_eyelashes(pi):

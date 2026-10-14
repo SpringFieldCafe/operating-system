@@ -57,8 +57,46 @@ class Example(Scene):
 睫毛属于角色自身，整体移动、缩放、翻转、淡入淡出时会一起变化。
 眨眼沿用原作者的 `Blink`；女性角色的 `blink()` 同时闭合睫毛，动画结束后一起恢复。
 眼睛仍保留作者的 iris/pupil 两部件结构，视线计算使用原有眼睛边界。
-当前只包含正常的 `plain` 姿势，额外表情须先取得原作者对应 SVG。
+包含正常的 `plain` 姿势，以及基于它自行生成的左手伸出、放置两个姿势。
+其他表情须先取得对应 SVG。
 完整来源、改动与授权见 `SOURCES.md`。
+
+## 左手放置动作
+
+这里只改变原图左边向下弯的凸起，右侧、双腿和面部保持固定。
+完整动作约 2 秒：略抬起并伸出、轻轻放下、停顿、收回。
+四个角色使用同一动作比例，整体 `flip()` 后会在镜像方向执行。
+本预览没有视线变化或眨眼，也不加入桌子和物品。
+
+```powershell
+manimgl pi_family/preview_scene.py LeftHandPlacementDemo
+python -m pi_family.render_hand_preview
+```
+
+第二条命令在 `pi_family/preview/` 生成 `left_hand_placement.gif`、
+`hand_start.png` 和 `hand_place.png`，不需要 FFmpeg。
+
+场景中可以复用完整动作：
+
+```python
+from pi_family import FatherPi, place_left_hand
+
+pi = FatherPi()
+self.add(pi)
+place_left_hand(self, pi, run_time=2.0)
+```
+
+也可把角色组传给 `place_left_hand(self, family)`，同时播放。
+内部依次调用原作者风格的 `self.play(pi.change(mode), rate_func=smooth)`。
+角色采用固定曲线对应关系，逐帧保留未变形顶点；目标 SVG 只改左手路径，
+原来的右侧、双腿以及眼睛和嘴巴的 SVG 指令保持原样。
+
+两份目标 SVG 已随项目保存；需要重新生成时运行：
+
+```powershell
+python pi_family/hand_poses.py
+python -m pi_family.verify_hand_motion
+```
 
 ## 已执行的验证
 
@@ -67,3 +105,9 @@ class Example(Scene):
 - 四个角色实际执行 `Blink`，闭合后恢复原点数据；女性睫毛一起闭合和恢复。
 - 睫毛随整体移动、缩放和翻转，眼睛仍为 iris/pupil 两部件。
 - 已实际渲染 1280×720 合照与 107 帧动画，并人工检查静态画面。
+- 左手动作已检查四个角色及其镜像、缩放和移动后的版本。
+  每段过渡采样 21 个时刻，非手臂身体顶点、肩部连接点、眼睛、嘴巴和睫毛
+  的点数据逐项保持完全相等；动作结束恢复普通姿势。
+- 已检查目标 SVG 的五个其他部件，以及身体路径中手臂之外的前后段保持原样。
+- 已实际渲染左手动作的 95 帧，并逐像素比较：四个左手区域之外的画面完全不变。
+  GIF 使用同一调色板，保持静止区域的颜色一致。

@@ -16,11 +16,23 @@
   随该版本保留 MIT 授权，见 `assets/LICENSE.txt`。
 - 本目录的角色适配和场景代码按 CC BY-NC-SA 4.0 提供；
   改动为六部件 SVG 索引适配、颜色、妈妈缩放，以及随眨眼变化的睫毛。
+- `assets/PiCreatures_left_hand_reach.svg` 和
+  `assets/PiCreatures_left_hand_place.svg` 是由 `hand_poses.py` 基于原版
+  `plain` SVG 自行生成的目标姿势，不是原作者提供的姿势素材。
+  只替换 `H187.4` 与 `h32.5` 之间的左手轮廓；肩部位置及其余 SVG 部件与指令保留。
+  左手以原版 ManimGL 曲线细分后的节点写成二次贝塞尔曲线，轻微拉伸并抬起或放低。
+  派生 SVG 保留 `assets/LICENSE.txt` 中的原版授权。
 
 参考的原作者场景是 `3b1b/videos` 的 `_2026/2025_P6/p6.py` 中
 `PiCreatureReactions`：通过 `self.play(randy.change(...))` 切换 SVG 姿势，
 通过 `Blink(randy)` 眨眼。本次仅准备角色，不实现该视频的场景。
 
-当前仅随项目提供公开的 `plain` SVG。其他姿势需要额外的原作者素材；
-调用不存在的姿势会明确报错，不会用普通姿势冒充。视线、移动、缩放、翻转和眨眼
-均可使用，不依赖其他 SVG。
+左手动作沿用原作者的 `change_mode()`：加载同类目标、匹配样式与高度、
+匹配镜像方向、对齐眼睛、再由 `change()` / `play()` 插值。
+本项目额外固定左手之外的所有部件和身体顶点，并使三套姿势使用同一曲线对应关系。
+适配层在插值时原样保留不动的顶点，避免浮点舍入造成微小位移；
+在动画结束时同步姿势名，以兼容当前 ManimGL 对已经对齐的对象跳过对齐回调的行为。
+`upstream/` 中的原作者代码没有新增改动。
+
+当前提供 `plain`、`left_hand_reach`、`left_hand_place` 三个姿势。
+调用不存在的姿势会明确报错，不会用普通姿势冒充。

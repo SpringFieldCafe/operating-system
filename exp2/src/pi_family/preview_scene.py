@@ -7,7 +7,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from manimlib import LEFT, RIGHT, UP, LaggedStart, Scene, Text, VGroup
-from pi_family import Blink, make_family
+from pi_family import Blink, make_family, place_left_hand
 
 
 class FamilyPortrait(Scene):
@@ -32,4 +32,12 @@ class FamilyMotion(FamilyPortrait):
         self.play(LaggedStart(*[Blink(pi) for pi in self.family], lag_ratio=0.25), run_time=0.9)
         self.play(*[pi.animate.look(RIGHT) for pi in self.family], run_time=0.8)
         self.play(*[pi.animate.look(LEFT) for pi in self.family], run_time=0.8)
+        self.wait(0.6)
+
+
+class LeftHandPlacementDemo(FamilyPortrait):
+    def construct(self):
+        super().construct()
+        self.wait(0.5)
+        place_left_hand(self, self.family, run_time=2.0)
         self.wait(0.6)
