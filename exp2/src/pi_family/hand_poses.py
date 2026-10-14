@@ -82,7 +82,10 @@ def pose_body_points(mode):
 
 
 def body_points_for_character(mode, character):
-    """Map SVG coordinates using the unchanged mouth as the affine reference."""
+    """Map SVG coordinates using the fixed face frame (mouth at construction)."""
+    if hasattr(character, "face_frame"):
+        from .face_frame import map_svg_points
+        return map_svg_points(pose_body_points(mode), character)
     _, source_mouth, _ = source_geometry()
     scale = character.mouth.get_width() / source_mouth.get_width()
     factors = np.array([-scale if character.is_flipped() else scale, -scale, 0])

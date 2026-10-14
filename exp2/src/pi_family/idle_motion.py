@@ -8,6 +8,7 @@ from manimlib import Mobject, VGroup, smooth, there_and_back
 
 from .upstream.pi_creature import PiCreature
 from .upstream.pi_creature_animations import Blink
+from .face_frame import frame_axes, world_look_direction
 
 
 # Three separate short scan versions for each character, in character-local
@@ -107,6 +108,8 @@ class CreatureIdle:
             reference.flip(about_point=reference.mouth.get_center())
         self.reference_mouth = reference.mouth.get_center().copy()
         self.reference_width = reference.mouth.get_width()
+        self.reference_origin, right, _ = frame_axes(reference)
+        self.reference_width = np.linalg.norm(right)
         self.face = _FaceRig(reference)
         self.blink_started = -float("inf")
         self.next_blink = self.blink_random.uniform(*settings.blink_interval)
@@ -118,6 +121,39 @@ class CreatureIdle:
         self.blink_events = []
         self.gaze_events = []
         self.last_time = 0.0
+        self.focus_target = None
+
+    def focus_on(self, target, time, duration=0.35):
+        """Hand off from the currently visible gaze, including mid-scan frames."""
+        self.update(time)
+        self.focus_start = self.face.copy()
+        self.focus_started, self.focus_duration = time, duration
+        self.focus_target = target
+        self.gaze_animation = None
+
+    def release_focus(self, time):
+        if self.focus_target is not None:
+            self._advance_focus(time)
+            self.focus_target = None
+            # Resume from the current pupils, not an old scan's starting point.
+            self.gaze_animation = None
+            self.gaze_state = "choose"
+            self.next_gaze = time + self.gaze_random.uniform(0.5, 1.0)
+
+    def _advance_focus(self, time):
+        target = self.focus_target
+        point = target() if callable(target) else target.get_center() if hasattr(target, "get_center") else target
+        center = (self.face.eyes.get_center() - self.reference_origin) / self.reference_width
+        direction = world_look_direction(point, self.pi, center)
+        goal = self.focus_start.copy().look(direction, self.amount)
+        alpha = smooth(np.clip((time - self.focus_started) / self.focus_duration, 0, 1))
+        for actual, start, end in zip(self.face.get_family(), self.focus_start.get_family(), goal.get_family()):
+            actual.interpolate(start, end, alpha)
+            if start.has_points():
+                fixed = np.all(start.get_points() == end.get_points(), axis=1)
+                points = actual.get_points().copy()
+                points[fixed] = start.get_points()[fixed]
+                actual.set_points(points)
 
     def _advance_gaze(self, time):
         while self.next_gaze <= time:
@@ -152,23 +188,25 @@ class CreatureIdle:
             self.gaze_animation.interpolate((time - self.gaze_started) / self.gaze_duration)
 
     def _apply_face(self, face):
-        scale = self.pi.mouth.get_width() / self.reference_width
-        factors = np.array([-scale if self.pi.is_flipped() else scale, scale, 1.0])
-        center = self.pi.mouth.get_center()
+        center, right, up = frame_axes(self.pi)
         parts = [(self.pi.eyes, face.eyes)]
         if hasattr(self.pi, "eyelashes"):
             parts.append((self.pi.eyelashes, face.eyelashes))
         for actual, virtual in parts:
             for destination, source in zip(actual.get_family(), virtual.get_family()):
                 if source.has_points():
-                    points = (source.get_points() - self.reference_mouth) * factors + center
+                    delta = (source.get_points() - self.reference_origin) / self.reference_width
+                    points = center + delta[:, :1] * right + delta[:, 1:2] * up
                     destination.set_points(points)
 
     def update(self, time, blink=True):
         if time < self.last_time:
             raise ValueError("Idle animation time must move forwards.")
         self.last_time = time
-        self._advance_gaze(time)
+        if self.focus_target is None:
+            self._advance_gaze(time)
+        else:
+            self._advance_focus(time)
         while self.next_blink <= time:
             self.blink_started = self.next_blink
             self.blink_events.append(self.next_blink)

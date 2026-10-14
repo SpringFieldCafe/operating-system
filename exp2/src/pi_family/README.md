@@ -58,7 +58,7 @@ class Example(Scene):
 眨眼沿用原作者的 `Blink`；女性角色的 `blink()` 同时闭合睫毛，动画结束后一起恢复。
 眼睛仍保留作者的 iris/pupil 两部件结构，视线计算使用原有眼睛边界。
 包含正常的 `plain` 姿势，以及基于它自行生成的左手伸出、放置两个姿势。
-其他表情须先取得对应 SVG。
+表情与欢呼通过下方的 `FamilyBehavior` 接口调用。
 完整来源、改动与授权见 `SOURCES.md`。
 
 ## 左手放置动作
@@ -159,3 +159,88 @@ self.wait(8)
 额外运行原来的 `verify_hand_motion`，确认仅手部演示保持原行为。
 已实际渲染约 13 秒、392 帧的预览，检查了不同角色的眨眼、扫视及与放置动作同播；
 ManimGL 场景命令也已执行验证。
+
+## 表情、等待与取回后的庆祝
+
+本阶段完成角色行为与状态接口。尚未加入水果图片、桌子、盘子容量、
+进程或信号量；预览中的状态是动作示意，不能当作实验程序的执行顺序。
+
+| 角色与状态 | 行为 |
+| --- | --- |
+| 父母可操作 | 每轮独立抽一次：正常、浅笑各 50%；这一轮保持稳定 |
+| 四人阻塞等待 | 平滑变成轻微撇嘴，只改变嘴巴 |
+| 儿子成功取回橘子 | 收回手以后，开心、欢呼各 50% |
+| 女儿成功取回苹果 | 收回手以后，开心、欢呼各 50% |
+| 孩子庆祝结束 | 恢复正常嘴形与手部姿势，从当前眼神接回随机扫视 |
+
+“等待”表示同步条件尚未满足：例如父母没有可用盘子位置，
+或孩子尚未取得自己需要的水果。普通停顿、动画的 `Scene.wait()` 不会自动变成等待表情。
+`ready()` 和 `waiting()` 都允许重复通知同一状态；重复通知不会重新抽表情或重启嘴形过渡。
+父母通过 `parent_placed()` 开始下一轮并重新抽取，或显式调用 `ready(pi, new_round=True)`。
+
+孩子的开心使用公开收藏副本中的笑嘴；欢呼使用其张嘴笑与两侧手端上扬轮廓。
+身体曲线保持相同顶点对应关系，腿部点数据保留。颜色、Baby 眼睛比例及女性睫毛沿用现有角色。
+父母浅笑及四人的等待嘴形由本项目绘制，只替换正常 SVG 的最后一条嘴部路径。
+
+眨眼仍使用原作者的 `PiCreature.blink()` 和 `Blink`，视线目标仍由原作者的 `look()` 计算。
+孩子庆祝时从当前瞳孔位置，用 0.35 秒平滑转向手中位置；其他角色继续随机扫视。
+视线可以跟随移动的水果对象或目标函数。默认目标是现有左手上的一个定位点，预览不画水果。
+庆祝进入、停留、退出分别为 0.45、0.9、0.45 秒；嘴形过渡为 0.3 秒。
+这些时长可用 `ReactionSettings` 调整，完全不决定未来同步程序的执行顺序。
+
+眼睛与嘴形定位使用三个位于角色内部的透明点，随整体移动、缩放、镜像，
+不会根据变化中的嘴巴宽度、闭眼高度重新缩放角色。
+同一场景时钟先合成身体和嘴，再合成视线和眨眼；眨眼计时始终持续，不因庆祝重置。
+退出关注时丢弃暂停的旧扫视目标，从当前瞳孔开始下一段，不补播积压的扫视。
+
+从仓库根目录运行：
+
+```powershell
+conda activate manim
+cd exp2/src
+python pi_family/expression_assets.py
+manimgl pi_family/preview_scene.py FamilyExpressionDemo
+```
+
+下载命令只读取两个固定版本的公开参考 SVG，核验 SHA-256 后保存到
+`pi_family/assets/reference/`。原始参考文件仅保存在本地缓存，不随本仓库提交；
+运行预览前需下载一次。来源与角色设计许可说明见 `SOURCES.md`。
+无需更换当前 ManimGL 环境。
+
+导出及验证：
+
+```powershell
+python -m pi_family.render_expression_preview
+python -m pi_family.verify_reactions
+```
+
+导出 `pi_family/preview/family_expressions.gif`，约 24.5 秒，736 帧，固定种子 12。
+这个种子展示父母的两种可操作表情，以及两个孩子各自的开心和欢呼；
+普通窗口预览默认不固定种子。女儿在这个预览里镜像显示，用于展示对称动作。
+
+状态接口示例：
+
+```python
+from pi_family import enable_behavior, make_family, take_left_hand
+
+family = make_family()
+self.add(family)
+behavior = enable_behavior(self, family)
+father, mother, son, daughter = family
+
+behavior.waiting(son)     # 由同步程序通知：暂时没有橘子
+behavior.ready(son)       # 由同步程序通知：已经可以取橘子
+take_left_hand(self, son)
+behavior.child_received(son, "orange")  # 默认独立随机 50/50
+# 有水果图形时：behavior.child_received(son, "orange", look_target=fruit)
+self.wait(behavior.reaction_settings.celebration_duration)
+```
+
+`enable_behavior()` 已包含持续眨眼和扫视，不需要对同一角色再次调用 `enable_idle()`。
+水果名称可用 `apple` / `orange` 或“苹果”/“橘子”；给孩子错误的水果会明确报错。
+`mode="happy"` 或 `mode="hooray"` 仅用于明确展示某一种情况，省略时保持 50/50 随机。
+已有 `place_left_hand()` 的阶段顺序、时长比例及两份目标 SVG 保留。
+
+验证涵盖：每轮抽样与重复状态通知、正确水果规则、四人仅嘴形变化、
+两个孩子在扫视途中和眨眼途中进入两种庆祝、镜像与缩放、腿部不动、
+瞳孔连续衔接、恢复随机扫视、眨眼时刻与未加表情的版本一致，以及控制器停止后的清理。

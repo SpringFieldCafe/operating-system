@@ -34,7 +34,7 @@
 在动画结束时同步姿势名，以兼容当前 ManimGL 对已经对齐的对象跳过对齐回调的行为。
 `upstream/` 中的原作者代码没有新增改动。
 
-当前提供 `plain`、`left_hand_reach`、`left_hand_place` 三个姿势。
+手部 `change()` 接口提供 `plain`、`left_hand_reach`、`left_hand_place` 三个姿势。
 调用不存在的姿势会明确报错，不会用普通姿势冒充。
 
 持续小动作参考同一提交的 `custom/characters/pi_creature_scene.py`：
@@ -53,3 +53,34 @@
 眨眼间隔采用 3–5 秒随机值，均值约为每分钟 15 次，仅作为动画节奏设置。
 参考 [MedlinePlus 的眨眼说明](https://www.medlineplus.gov/ency/anatomyvideos/000010.htm)。
 单次 0.25 秒、扫视方向与观察幅度是本项目的动画设计参数。
+
+## 表情与欢呼参考
+
+- 开心与欢呼的公开收藏副本来自
+  [CaftBotti/manim_pi_creatures](https://github.com/CaftBotti/manim_pi_creatures/tree/6a5babc6518d7d7e604c503db98abdbb269d087e/PiCreature)，
+  固定提交 `6a5babc6518d7d7e604c503db98abdbb269d087e`。
+  收藏仓库 README 声明其 `PiCreature/` 文件来自原作者网站。
+  原网站旧链接在此次核对时返回 404，因此这里注明为公开收藏副本，
+  不保证与最新视频的内部素材完全同版。
+- `PiCreatures_happy.svg` SHA-256：
+  `bf4f55a7ad22b710317672db13436cc2da3f99d66b9367f8817768cfe80e6ecd`。
+- `PiCreatures_hooray.svg` SHA-256：
+  `eb0553be9a962a8f8db910f3057ad3e7d824c4066e22c7b6d9dba3d973be5bf7`。
+- 原始收藏副本由 `expression_assets.py` 按固定地址下载并核验，仅存入被 Git 忽略的
+  `assets/reference/`，不纳入此仓库的发布内容。这里没有将它们重新授权为 MIT。
+  原作者说明角色设计的权益与 Manim 的软件许可分开，见
+  [原作者的说明](https://github.com/3b1b/manim/issues/18#issuecomment-1501234962)。
+
+本项目读取这两个 SVG 的嘴部路径；欢呼同时读取身体路径中的手部变化。
+开心的身体与正常轮廓相同，仅有整体 SVG 坐标偏移及细小导出舍入差异，因此保留正常身体。
+欢呼的坐标以同一腿部连接点对齐；复用正常轮廓的曲线细分分配，使对应顶点一致，
+并保留原有腿部顶点。眼睛不从表情 SVG 重建，现有 Baby 比例与睫毛保留。
+
+`expression_geometry.py` 的曲线细分分配适配自 ManimGL 的
+`VMobject.insert_n_curves_to_point_list()`，使用本地引擎版本 `fafa083` 的算法，
+遵循 MIT 许可；完整许可保存在 `upstream/MANIM_LICENSE.txt`。
+其余角色状态调度、关注水果并恢复扫视的切换、独立随机抽样及连续组合层由本项目编写。
+`upstream/` 中两份 PiCreature 作者代码保持原样。
+
+`assets/PiCreatures_parent_smile.svg`、`assets/PiCreatures_waiting.svg` 由本项目绘制嘴巴，
+仅替换旧版正常 SVG 的嘴部路径。其他五条路径与原稿相同，保留旧版素材的 MIT 许可。

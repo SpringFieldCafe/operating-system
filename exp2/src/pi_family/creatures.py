@@ -8,6 +8,7 @@ from manimlib.animation.transform import _MethodAnimation
 from manimlib.mobject.mobject import _AnimationBuilder
 
 from .hand_poses import POSE_FILES, body_points_for_character, source_geometry
+from .face_frame import attach_face_frame, frame_axes
 from .upstream.pi_creature import BabyPiCreature, PiCreature, Randolph
 from .upstream.pi_creature_animations import Blink
 
@@ -59,6 +60,7 @@ class _PublicSVG:
             # to length. A stretched arm would otherwise redistribute points
             # on the stationary legs and right side during interpolation.
             self.body.set_points(body_points_for_character(mode, self))
+        attach_face_frame(self)
 
     def get_svg_file_path(self, mode):
         if mode not in POSE_FILES:
@@ -81,6 +83,7 @@ class _PublicSVG:
     def change_mode(self, mode):
         body_points = self.body.get_points().copy()
         fixed_parts = [(self.eyes, self.eyes.copy()), (self.mouth, self.mouth.copy())]
+        fixed_parts.append((self.face_frame, self.face_frame.copy()))
         if hasattr(self, "eyelashes"):
             fixed_parts.append((self.eyelashes, self.eyelashes.copy()))
         if getattr(self, "_ambient_face_active", False):
@@ -88,10 +91,10 @@ class _PublicSVG:
             # a blink temporarily shrinks the face bounds. Normalize only the
             # preparation copy, then restore its current visible face below.
             reference = self.__class__()
-            reference.scale(self.body.get_height() / reference.body.get_height())
+            reference.scale(np.linalg.norm(frame_axes(self)[1]) / np.linalg.norm(frame_axes(reference)[1]))
             if self.is_flipped() != reference.is_flipped():
                 reference.flip()
-            reference.shift(self.mouth.get_center() - reference.mouth.get_center())
+            reference.shift(frame_axes(self)[0] - frame_axes(reference)[0])
             self.eyes.become(reference.eyes)
             if hasattr(self, "eyelashes"):
                 self.eyelashes.become(reference.eyelashes)
