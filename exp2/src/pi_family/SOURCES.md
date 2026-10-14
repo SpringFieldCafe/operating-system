@@ -92,3 +92,8 @@
 这些素材不加载、不生成独立 SVG，也不包含图片或下载依赖。
 `props_scene.py` 与 `render_props_preview.py` 提供素材大小及上下分区构图的实际渲染预览。
 新增代码沿用本目录的 CC BY-NC-SA 4.0 授权。
+
+`contact_layout.py` 用实际 ManimGL 曲线采样计算四个角色的接触位置，
+`render_contact_previews.py` 与 `verify_contact_fit.py` 提供同尺度对比图和姿势过渡检查。
+左侧妈妈、儿子的镜像使用既有 `PiCreature.flip()`，手臂仍使用原来的三套姿势。
+未新增或改写角色 SVG、手部目标 SVG 或作者的 `upstream/` 代码。

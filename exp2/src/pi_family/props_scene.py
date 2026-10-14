@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from manimlib import DOWN, Scene, Text, UP, VGroup
 from pi_family import DaughterPi, FatherPi, MotherPi, SonPi
 from pi_family.props import AppleOutline, OrangeOutline, make_fruit_table
+from pi_family.contact_layout import CONTACT_ROLES, make_contact_pose
 
 
 class FruitPropsPreview(Scene):
@@ -38,10 +39,12 @@ class FamilyTablePreview(Scene):
     def construct(self):
         father, mother = FatherPi(height=2.4), MotherPi(height=2.16)
         son, daughter = SonPi(height=1.25), DaughterPi(height=1.25)
+        mother.flip()
+        son.flip()
         self.family = VGroup(father, mother, son, daughter)
         self.props = make_fruit_table().shift(0.15 * DOWN)
         for pi, x, body_bottom in (
-            (father, -2.7, 1.15), (mother, 2.7, 1.15),
+            (father, 2.7, 1.15), (mother, -2.7, 1.15),
             (son, -2.7, -2.75), (daughter, 2.7, -2.75),
         ):
             pi.set_x(x)
@@ -53,3 +56,35 @@ class FamilyTablePreview(Scene):
         ):
             self.add(Text(name, font="Microsoft YaHei", font_size=23,
                           color=pi.get_color()).move_to([pi.get_x(), y, 0]))
+
+
+class _RoleContactPreview(Scene):
+    default_camera_config = {"background_color": "#171B23"}
+    role_key = "daughter"
+
+    def construct(self):
+        role = CONTACT_ROLES[self.role_key]
+        self.character, self.props = make_contact_pose(self.role_key)
+        # All four exports use the same frame and unchanged object scales.
+        self.camera.frame.set_width(8.2).move_to([0, 0.9, 0])
+        mirror = "镜像" if role.side == -1 else "原方向"
+        title = Text(f"{role.label} · {role.action} · {mirror}",
+                     font="Microsoft YaHei", font_size=25)
+        title.move_to([0, 2.7, 0])
+        self.add(self.props, self.character, title)
+
+
+class FatherContactPreview(_RoleContactPreview):
+    role_key = "father"
+
+
+class MotherContactPreview(_RoleContactPreview):
+    role_key = "mother"
+
+
+class SonContactPreview(_RoleContactPreview):
+    role_key = "son"
+
+
+class DaughterContactPreview(_RoleContactPreview):
+    role_key = "daughter"
