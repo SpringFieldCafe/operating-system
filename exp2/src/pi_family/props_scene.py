@@ -24,7 +24,7 @@ class FruitPropsPreview(Scene):
             self.add(Text(name, font="Microsoft YaHei", font_size=24)
                      .move_to([x, -0.7, 0]))
         # Render at their actual small sizes, rather than downsampling an image.
-        for index, height in enumerate((0.95, 0.65, 0.40)):
+        for index, height in enumerate((0.45, 0.35, 0.25)):
             pair = VGroup(AppleOutline(height=height), OrangeOutline(height=height))
             pair.arrange(buff=0.22).move_to([-3.6 + 3.6 * index, -2.0, 0])
             label = Text(f"高度 {height:.2f}", font="Microsoft YaHei", font_size=22)

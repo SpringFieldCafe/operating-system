@@ -5,9 +5,7 @@ from manimlib import Circle, GREY_B, Line, RED, UP, VGroup, VMobject, YELLOW
 
 
 PROP_STROKE_WIDTH = 2.5
-FRUIT_HEIGHT = 0.95
-APPLE_WIDTH = 0.36
-ORANGE_WIDTH = 0.38
+FRUIT_HEIGHT = 0.45
 
 
 def _point(x, y):
@@ -30,7 +28,7 @@ class AppleOutline(VGroup):
     """A complete apple silhouette and one hollow leaf, without a bite."""
 
     def __init__(self, height=FRUIT_HEIGHT, color=RED,
-                 stroke_width=PROP_STROKE_WIDTH, width=None, **kwargs):
+                 stroke_width=PROP_STROKE_WIDTH, **kwargs):
         super().__init__(**kwargs)
         self.body = _closed_curve((0, 0.32), [
             ((-0.12, 0.49), (-0.45, 0.52), (-0.51, 0.25)),
@@ -46,16 +44,13 @@ class AppleOutline(VGroup):
         ], color, stroke_width)
         self.add(self.body, self.leaf)
         self.set_height(height).center()
-        self.stretch_to_fit_width(
-            APPLE_WIDTH * height / FRUIT_HEIGHT if width is None else width,
-        )
 
 
 class OrangeOutline(VGroup):
-    """A slender orange and a short stem; no texture or interior detail."""
+    """A round orange and a short stem; no texture or interior detail."""
 
     def __init__(self, height=FRUIT_HEIGHT, color=YELLOW,
-                 stroke_width=PROP_STROKE_WIDTH, width=None, **kwargs):
+                 stroke_width=PROP_STROKE_WIDTH, **kwargs):
         super().__init__(**kwargs)
         self.body = Circle(
             radius=0.48, stroke_color=color,
@@ -67,15 +62,12 @@ class OrangeOutline(VGroup):
         )
         self.add(self.body, self.stem)
         self.set_height(height).center()
-        self.stretch_to_fit_width(
-            ORANGE_WIDTH * height / FRUIT_HEIGHT if width is None else width,
-        )
 
 
 class SimpleTable(VGroup):
     """Front-view I shape: a wide top, a single support, a narrower foot."""
 
-    def __init__(self, width=1.25, height=1.1, base_width=0.72,
+    def __init__(self, width=1.25, height=0.8, base_width=0.72,
                  color=GREY_B, stroke_width=PROP_STROKE_WIDTH, **kwargs):
         super().__init__(**kwargs)
         style = dict(stroke_color=color, stroke_width=stroke_width)
@@ -91,7 +83,7 @@ class SimpleTable(VGroup):
 class OpenPlate(VMobject):
     """Three sides of an upward-open trapezoid, with room for two fruits."""
 
-    def __init__(self, width=1.15, base_width=1.0, height=0.5,
+    def __init__(self, width=1.15, base_width=1.0, height=0.18,
                  color=GREY_B, stroke_width=PROP_STROKE_WIDTH, **kwargs):
         super().__init__(stroke_color=color, stroke_width=stroke_width,
                          fill_opacity=0, **kwargs)
@@ -112,7 +104,7 @@ class OpenPlate(VMobject):
         # A small gap keeps hollow fruit outlines clear of the plate's floor.
         upward = anchors[0] - left + anchors[-1] - right
         return tuple(left + fraction * base + 0.10 * upward
-                     for fraction in (0.23, 0.77))
+                     for fraction in (0.25, 0.75))
 
 
 def make_fruit_table():

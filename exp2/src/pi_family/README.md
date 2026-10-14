@@ -252,15 +252,15 @@ self.wait(behavior.reaction_settings.celebration_duration)
 
 | 素材 | 默认尺寸（场景单位） | 样式 |
 | --- | --- | --- |
-| `AppleOutline` | 整体高 0.95、宽 0.36 | 默认 `RED`，完整苹果轮廓加一片空心叶子，无缺口或高光 |
-| `OrangeOutline` | 整体高 0.95、宽 0.38 | 默认 `YELLOW`，细长椭圆轮廓加短果梗 |
-| `SimpleTable` | 桌面宽 1.25、高 1.1、底座宽 0.72 | 默认 `GREY_B`，三条线组成上宽下窄的工字形 |
-| `OpenPlate` | 开口宽 1.15、底宽 1.0、高 0.5 | 默认 `GREY_B`，仅三个边，上方敞开 |
+| `AppleOutline` | 整体高 0.45、宽约 0.40 | 默认 `RED`，完整苹果轮廓加一片空心叶子，无缺口或高光 |
+| `OrangeOutline` | 整体高 0.45、宽约 0.40 | 默认 `YELLOW`，圆形轮廓加短果梗 |
+| `SimpleTable` | 桌面宽 1.25、高 0.80、底座宽 0.72 | 默认 `GREY_B`，三条线组成上宽下窄的工字形 |
+| `OpenPlate` | 开口宽 1.15、底宽 1.0、高 0.18 | 默认 `GREY_B`，仅三个边，上方敞开的浅盘 |
 
 线宽统一为 2.5，比 ManimGL 默认的 4 细，接近现有角色睫毛的 2.4。
 水果和盘子的填充透明度为 0；所有部件都位于二维平面，没有阴影、纹理或透视。
-构造器接受 `color`、`stroke_width`，水果接受 `height` 和 `width`，桌盘接受表内各尺寸参数。
-水果不指定 `width` 时保持表内的细长比例随高度缩放；指定时可独立调整宽高。
+构造器接受 `color`、`stroke_width`，水果接受 `height`，桌盘接受表内各尺寸参数。
+水果保持第一版轮廓的原始宽高比例，只做等比例缩放；橘子的果身始终为圆形。
 
 ```python
 from pi_family import AppleOutline, OrangeOutline, SimpleTable, OpenPlate, make_fruit_table
@@ -270,7 +270,6 @@ self.add(props)
 # 可单独访问 props.table、props.plate、props.apple、props.orange。
 # 整组可用 Manim 的 move_to、shift、scale 等方法移动和缩放。
 small_apple = AppleOutline(height=0.3, stroke_width=2.5)
-slender_apple = AppleOutline(height=0.95, width=0.36)
 ```
 
 `OpenPlate.fruit_positions()` 返回盘内两个水果的底部定位点，随盘子的移动、
@@ -279,12 +278,14 @@ slender_apple = AppleOutline(height=0.95, width=0.36)
 这些只是图形定位点；此处没有盘子容量状态、进程或信号量。
 
 桌盘宽度依据现有孩子的手长收窄：以预览的构造高度 1.25 为基准，
-放取姿势的手端比主体向外多伸约 0.30。水果拉高，使接触位置可以位于盘沿上方。
+放取姿势的手端比主体向外多伸约 0.30。水果恢复原比例并缩小，同时降低桌高与盘深，
+使接触位置可以位于盘沿上方。两个水果的横向间隙约 0.10，底部与盘底相隔约 0.036。
 校准时保持女儿原方向，使用既有 `left_hand_place` 姿势从右侧接触苹果，
-手端高度设在盘沿上方约 0.19，主体与桌边相隔约 0.11。
-对既有姿势过渡共采样 84 个时刻，手臂与盘沿的最小间隙约 0.07，
+手端高度设在盘沿上方约 0.17，主体与桌边相隔约 0.10。
+对既有姿势过渡共采样 84 个时刻，手臂与盘沿的最小间隙约 0.05，
 手部轮廓没有进入水果内部。儿子使用相同的 Baby 手部几何，按原方向、
-等价的外侧槽位检查橘子时，主体间隙约 0.13。
+等价的外侧槽位检查橘子时，主体间隙同样约 0.10。
+另将高度 0.45、0.35、0.25 的水果点数据逐项与第一版等比例构造结果比较，确认轮廓与比例恢复。
 这次仅调整素材尺寸和槽位；角色方向、既有手臂动作及上下分区位置保持原样，
 左右接近的行走和儿子的镜像留待后续场景实现。
 
@@ -300,7 +301,7 @@ manimgl pi_family/props_scene.py FamilyTablePreview
 
 导出以下本地预览，均由 ManimGL 实际渲染，生成文件被 Git 忽略：
 
-- `preview/fruit_props.png`：1280×720 素材图，同时展示高度 0.95、0.65、0.40 的水果。
+- `preview/fruit_props.png`：1280×720 素材图，同时展示高度 0.45、0.35、0.25 的水果。
 - `preview/family_table.png`：1280×720 四人围桌的二维比例示意。
 - `preview/family_table_small.png`：640×360 的同一构图，便于检查缩小后的辨识度。
 
