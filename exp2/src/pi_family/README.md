@@ -1,0 +1,69 @@
+# 实验 2 的四个 PiCreature
+
+这一步只准备角色与预览，不包含进程同步、水果或实验演示逻辑。
+
+| 类 | 造型 | 构造高度 | 身体颜色 |
+| --- | --- | --- | --- |
+| `FatherPi` | 原版 Randolph 成人比例 | 3.0 | 深蓝 `#176477` |
+| `MotherPi` | 成人比例，爸爸的 90%，仅加睫毛 | 2.7 | 深红 `#B83F49` |
+| `SonPi` | 原版 BabyPiCreature | 1.5 | 天蓝 `#77C9EF` |
+| `DaughterPi` | 相同 Baby 比例，仅加睫毛 | 1.5 | 浅红 `#F27983` |
+
+构造高度是传给原作者构造器的数值。Baby 随后把眼睛放大 1.2 倍，瞳孔再放大 1.3 倍，
+所以最终整体边界高度可能稍大于 1.5。儿子与女儿的身体、眼睛和瞳孔尺寸相同；
+睫毛不参与身体缩放。没有蝴蝶结、头发、衣服或其他饰物。
+
+## 运行
+
+使用现有 `manim` conda 环境。已在 Python 3.12.15、ManimGL 1.7.2 的本地源码安装中验证。
+依赖记录见 `requirements.txt`。以下命令从仓库根目录开始：
+
+```powershell
+conda activate manim
+cd exp2/src
+python -m pi_family.render_previews
+```
+
+在 `pi_family/preview/` 生成四人合照 `family.png` 和视线、眨眼预览 `family_motion.gif`。
+预览使用 ManimGL 实际渲染，不需要 FFmpeg；生成文件被 Git 忽略。
+
+使用 ManimGL 窗口观看：
+
+```powershell
+manimgl pi_family/preview_scene.py FamilyPortrait
+manimgl pi_family/preview_scene.py FamilyMotion
+```
+
+## 后续场景复用
+
+场景位于 `exp2/src` 时可以直接导入：
+
+```python
+from manimlib import LEFT, RIGHT, Scene
+from pi_family import Blink, FatherPi, MotherPi, SonPi, DaughterPi
+
+class Example(Scene):
+    def construct(self):
+        father = FatherPi()
+        mother = MotherPi().shift(3 * RIGHT)
+        son = SonPi().shift(3 * LEFT)
+        daughter = DaughterPi().shift(5 * RIGHT)
+        self.add(father, mother, son, daughter)
+        self.play(mother.animate.look(LEFT))
+        self.play(Blink(mother), Blink(daughter))
+        self.play(son.animate.shift(RIGHT))
+```
+
+睫毛属于角色自身，整体移动、缩放、翻转、淡入淡出时会一起变化。
+眨眼沿用原作者的 `Blink`；女性角色的 `blink()` 同时闭合睫毛，动画结束后一起恢复。
+眼睛仍保留作者的 iris/pupil 两部件结构，视线计算使用原有眼睛边界。
+当前只包含正常的 `plain` 姿势，额外表情须先取得原作者对应 SVG。
+完整来源、改动与授权见 `SOURCES.md`。
+
+## 已执行的验证
+
+- 爸爸的身体点数据与原版成人一致，妈妈的身体点数据为其 0.9 倍。
+- 两个孩子的身体、眼睛和瞳孔点数据与原版 Baby 构造结果一致。
+- 四个角色实际执行 `Blink`，闭合后恢复原点数据；女性睫毛一起闭合和恢复。
+- 睫毛随整体移动、缩放和翻转，眼睛仍为 iris/pupil 两部件。
+- 已实际渲染 1280×720 合照与 107 帧动画，并人工检查静态画面。
