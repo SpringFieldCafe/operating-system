@@ -84,3 +84,11 @@
 
 `assets/PiCreatures_parent_smile.svg`、`assets/PiCreatures_waiting.svg` 由本项目绘制嘴巴，
 仅替换旧版正常 SVG 的嘴部路径。其他五条路径与原稿相同，保留旧版素材的 MIT 许可。
+
+## 水果与桌盘
+
+`props.py` 的苹果、橘子、桌子和盘子由本项目用 ManimGL 原生曲线、圆与直线绘制。
+苹果采用完整果身与单叶的简化轮廓，没有使用或描摹外部 logo 路径。
+这些素材不加载、不生成独立 SVG，也不包含图片或下载依赖。
+`props_scene.py` 与 `render_props_preview.py` 提供素材大小及上下分区构图的实际渲染预览。
+新增代码沿用本目录的 CC BY-NC-SA 4.0 授权。

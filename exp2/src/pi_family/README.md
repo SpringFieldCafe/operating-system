@@ -1,6 +1,6 @@
 # 实验 2 的四个 PiCreature
 
-这一步只准备角色与预览，不包含进程同步、水果或实验演示逻辑。
+这里准备角色、动作、空心水果、二维桌盘及预览，不包含进程同步或实验演示逻辑。
 
 | 类 | 造型 | 构造高度 | 身体颜色 |
 | --- | --- | --- | --- |
@@ -162,7 +162,7 @@ ManimGL 场景命令也已执行验证。
 
 ## 表情、等待与取回后的庆祝
 
-本阶段完成角色行为与状态接口。尚未加入水果图片、桌子、盘子容量、
+本节预览展示角色行为与状态接口。尚未加入水果、桌子、盘子容量、
 进程或信号量；预览中的状态是动作示意，不能当作实验程序的执行顺序。
 
 | 角色与状态 | 行为 |
@@ -244,3 +244,53 @@ self.wait(behavior.reaction_settings.celebration_duration)
 验证涵盖：每轮抽样与重复状态通知、正确水果规则、四人仅嘴形变化、
 两个孩子在扫视途中和眨眼途中进入两种庆祝、镜像与缩放、腿部不动、
 瞳孔连续衔接、恢复随机扫视、眨眼时刻与未加表情的版本一致，以及控制器停止后的清理。
+
+## 空心水果与二维桌盘
+
+`props.py` 直接使用 ManimGL 的 `VMobject`、`Circle`、`Line` 和 `VGroup`，
+不加载或生成水果、桌盘 SVG，不依赖额外图片。
+
+| 素材 | 默认尺寸（场景单位） | 样式 |
+| --- | --- | --- |
+| `AppleOutline` | 整体高度 0.65 | 默认 `RED`，完整苹果轮廓加一片空心叶子，无缺口或高光 |
+| `OrangeOutline` | 整体高度 0.65 | 默认 `YELLOW`，圆轮廓加短果梗 |
+| `SimpleTable` | 桌面宽 3.8、高 1.1、底座宽 2.1 | 默认 `GREY_B`，三条线组成上宽下窄的工字形 |
+| `OpenPlate` | 开口宽 2.8、底宽 2.2、高 0.5 | 默认 `GREY_B`，仅三个边，上方敞开 |
+
+线宽统一为 2.5，比 ManimGL 默认的 4 细，接近现有角色睫毛的 2.4。
+水果和盘子的填充透明度为 0；所有部件都位于二维平面，没有阴影、纹理或透视。
+构造器接受 `color`、`stroke_width`，水果接受 `height`，桌盘接受表内各尺寸参数。
+
+```python
+from pi_family import AppleOutline, OrangeOutline, SimpleTable, OpenPlate, make_fruit_table
+
+props = make_fruit_table()
+self.add(props)
+# 可单独访问 props.table、props.plate、props.apple、props.orange。
+# 整组可用 Manim 的 move_to、shift、scale 等方法移动和缩放。
+small_apple = AppleOutline(height=0.3, stroke_width=2.5)
+```
+
+`OpenPlate.fruit_positions()` 返回盘内两个水果的底部定位点，随盘子的移动、
+缩放和镜像变化。`make_fruit_table()` 已把两种水果放在这些位置，保留间隙。
+这些只是图形定位点；此处没有盘子容量状态、进程或信号量。
+
+从仓库根目录运行：
+
+```powershell
+conda activate manim
+cd exp2/src
+python -m pi_family.render_props_preview
+manimgl pi_family/props_scene.py FruitPropsPreview
+manimgl pi_family/props_scene.py FamilyTablePreview
+```
+
+导出以下本地预览，均由 ManimGL 实际渲染，生成文件被 Git 忽略：
+
+- `preview/fruit_props.png`：1280×720 素材图，同时展示高度 0.65、0.45、0.30 的水果。
+- `preview/family_table.png`：1280×720 四人围桌的二维比例示意。
+- `preview/family_table_small.png`：640×360 的同一构图，便于检查缩小后的辨识度。
+
+构图中爸爸、妈妈在上排，儿子、女儿在下排，桌盘居中，人物完整可见且互不遮挡。
+预览把爸爸构造高度设为 2.4、妈妈设为 2.16、孩子设为 1.25，保留已有比例，
+不更改角色类的默认尺寸或原来的动作预览。
