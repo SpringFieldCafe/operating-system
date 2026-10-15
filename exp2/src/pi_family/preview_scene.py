@@ -88,7 +88,6 @@ class FamilyExpressionDemo(FamilyPortrait):
 
     def construct(self):
         super().construct()
-        self.family[3].flip()
         self.role_status = [None] * 4
         father, mother, son, daughter = self.family
         self.behavior = enable_behavior(self, self.family, seed=self.reaction_seed)

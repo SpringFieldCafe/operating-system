@@ -6,7 +6,7 @@ import numpy as np
 from manimlib import VMobject
 
 from .creatures import DaughterPi, FatherPi, MotherPi, SonPi
-from .hand_poses import source_geometry
+from .hand_poses import source_geometry, arm_slice, source_hand
 from .props import make_fruit_table
 
 
@@ -18,6 +18,10 @@ class ContactRole:
     fruit: str
     side: int
     action: str
+
+    @property
+    def hand(self):
+        return "right" if self.side == -1 else "left"
 
 
 CONTACT_ROLES = {
@@ -39,8 +43,8 @@ def sample_contour(mobject, samples_per_curve=25):
             + t**2 * curves[:, 2, None]).reshape(-1, 3)
 
 
-def hand_contour(pi, samples_per_curve=25):
-    _, _, arm = source_geometry()
+def hand_contour(pi, samples_per_curve=25, side="left"):
+    arm = arm_slice(source_hand(pi, side))
     hand = VMobject().set_points(pi.body.get_points()[arm])
     return sample_contour(hand, samples_per_curve)
 
@@ -62,16 +66,15 @@ def outer_edges(contour, heights):
 def make_contact_pose(role_key):
     """Return one character and the unchanged table/fruit group at contact.
 
-    The two left-side roles are mirrored as a whole. Only the character's
-    position is fitted; fruit sizes, arm geometry and table positions stay fixed.
+    All roles retain the same orientation. Choose the hand facing the table,
+    and fit the position to the unchanged fruit/plate geometry.
     """
     role = CONTACT_ROLES[role_key]
     props = make_fruit_table()
     pi = role.creature_type(height=role.height)
-    if role.side == -1:
-        pi.flip()
-    pi.change_mode("left_hand_place")
-    hand = hand_contour(pi, 51)
+    pi._active_hand = role.hand
+    pi.change_mode(f"{role.hand}_hand_place")
+    hand = hand_contour(pi, 51, side=role.hand)
     outward_x = role.side * hand[:, 0]
     tip = hand[np.argmin(outward_x)]
     dy = props.plate.get_top()[1] + CONTACT_ABOVE_RIM - tip[1]

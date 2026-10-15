@@ -5,7 +5,7 @@ import numpy as np
 from .contact_layout import (
     CONTACT_ROLES, hand_contour, make_contact_pose, outer_edges, sample_contour,
 )
-from .hand_poses import source_geometry
+from .hand_poses import source_geometry, arm_slice
 
 
 def _cross(a, b):
@@ -50,14 +50,14 @@ def _prop_segments(props):
 def verify_role(role_key):
     role = CONTACT_ROLES[role_key]
     pi, props = make_contact_pose(role_key)
-    _, _, arm = source_geometry()
+    arm = arm_slice(role.hand)
     props_snapshot = props.get_all_points().copy()
     points = pi.body.get_points()
     fixed = np.concatenate((points[:arm.start], points[arm.stop:]))
     outward = role.side * fixed[:, 0]
     body_gap = outward.min() - props.table.get_width() / 2
     assert body_gap > 0.08, (role_key, "body-table", body_gap)
-    assert pi.is_flipped() == (role.side == -1)
+    assert not pi.is_flipped()
     obstacle_segments = _prop_segments(props)
     fruit_contours = []
     for fruit in (props.apple, props.orange):
@@ -65,7 +65,7 @@ def verify_role(role_key):
             contour = sample_contour(part, 51)
             contour[:, 0] *= role.side
             fruit_contours.append(contour)
-    initial_hand = hand_contour(pi, 51)
+    initial_hand = hand_contour(pi, 51, side=role.hand)
     contact_gaps = []
     target = getattr(props, role.fruit)
     for part in target.family_members_with_points():
@@ -82,8 +82,8 @@ def verify_role(role_key):
     # Cover both real helpers: place goes plain->reach->place->plain;
     # take goes plain->place->reach->plain. Geometry is independent of timing.
     for sequence in (
-        ("plain", "left_hand_reach", "left_hand_place", "plain"),
-        ("plain", "left_hand_place", "left_hand_reach", "plain"),
+        ("plain", f"{role.hand}_hand_reach", f"{role.hand}_hand_place", "plain"),
+        ("plain", f"{role.hand}_hand_place", f"{role.hand}_hand_reach", "plain"),
     ):
         pi.change_mode(sequence[0])
         for mode in sequence[1:]:
@@ -95,9 +95,9 @@ def verify_role(role_key):
                 current = pi.body.get_points()
                 current_fixed = np.concatenate((current[:arm.start], current[arm.stop:]))
                 assert np.array_equal(current_fixed, fixed)
-                assert pi.is_flipped() == (role.side == -1)
+                assert not pi.is_flipped()
                 assert np.array_equal(props.get_all_points(), props_snapshot)
-                hand = hand_contour(pi, 31)
+                hand = hand_contour(pi, 31, side=role.hand)
                 gap = _contour_segment_distance(hand, obstacle_segments)
                 prop_gap = min(prop_gap, gap)
                 # At the common 1280px/8.2-unit frame, the prop half-stroke

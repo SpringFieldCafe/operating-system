@@ -7,7 +7,7 @@ from manimlib import DOWN, Line, UP, VGroup
 from manimlib.animation.transform import _MethodAnimation
 from manimlib.mobject.mobject import _AnimationBuilder
 
-from .hand_poses import POSE_FILES, body_points_for_character, source_geometry
+from .hand_poses import POSE_FILES, arm_slice, body_points_for_character, source_geometry
 from .face_frame import attach_face_frame, frame_axes
 from .upstream.pi_creature import BabyPiCreature, PiCreature, Randolph
 from .upstream.pi_creature_animations import Blink
@@ -81,6 +81,7 @@ class _PublicSVG:
         self.set_submobjects([self.eyes, self.body, self.mouth])
 
     def change_mode(self, mode):
+        old_mode = self.mode
         body_points = self.body.get_points().copy()
         fixed_parts = [(self.eyes, self.eyes.copy()), (self.mouth, self.mouth.copy())]
         fixed_parts.append((self.face_frame, self.face_frame.copy()))
@@ -99,18 +100,23 @@ class _PublicSVG:
             if hasattr(self, "eyelashes"):
                 self.eyelashes.become(reference.eyelashes)
         super().change_mode(mode)
-        _, _, arm = source_geometry()
-        target_points = self.body.get_points().copy()
-        # Preserve non-arm points exactly, including after mirroring or scaling.
-        target_points[:arm.start] = body_points[:arm.start]
-        target_points[arm.stop:] = body_points[arm.stop:]
-        # Preserve the original zero-length shoulder marker as well as both
-        # attachment tangents. Perturbing a marker changes path segmentation.
-        target_points[arm.start:arm.start + 4] = body_points[arm.start:arm.start + 4]
-        target_points[arm.stop - 2:arm.stop] = body_points[arm.stop - 2:arm.stop]
-        self.body.set_points(target_points)
         for part, original in fixed_parts:
             part.become(original)
+        # Reset the previous hand as well when switching hands or returning
+        # to plain, while preserving every unrelated vertex exactly.
+        moving = np.zeros(len(body_points), dtype=bool)
+        for pose in (old_mode, mode):
+            if pose != "plain":
+                moving[arm_slice(pose.split("_", 1)[0])] = True
+        target_points = body_points_for_character(mode, self)
+        target_points[~moving] = body_points[~moving]
+        # Preserve the original zero-length shoulder marker as well as both
+        # attachment tangents. Perturbing a marker changes path segmentation.
+        for side in ("left", "right"):
+            arm = arm_slice(side)
+            target_points[arm.start:arm.start + 4] = body_points[arm.start:arm.start + 4]
+            target_points[arm.stop - 2:arm.stop] = body_points[arm.stop - 2:arm.stop]
+        self.body.set_points(target_points)
         return self
 
     def change(self, new_mode, look_at=None):

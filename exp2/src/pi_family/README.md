@@ -57,7 +57,7 @@ class Example(Scene):
 睫毛属于角色自身，整体移动、缩放、翻转、淡入淡出时会一起变化。
 眨眼沿用原作者的 `Blink`；女性角色的 `blink()` 同时闭合睫毛，动画结束后一起恢复。
 眼睛仍保留作者的 iris/pupil 两部件结构，视线计算使用原有眼睛边界。
-包含正常的 `plain` 姿势，以及基于它自行生成的左手伸出、放置两个姿势。
+包含正常的 `plain` 姿势，以及基于它自行生成的两侧伸出、取放与持果姿势。
 表情与欢呼通过下方的 `FamilyBehavior` 接口调用。
 完整来源、改动与授权见 `SOURCES.md`。
 
@@ -216,7 +216,7 @@ python -m pi_family.verify_reactions
 
 导出 `pi_family/preview/family_expressions.gif`，约 24.5 秒，736 帧，固定种子 12。
 这个种子展示父母的两种可操作表情，以及两个孩子各自的开心和欢呼；
-普通窗口预览默认不固定种子。女儿在这个预览里镜像显示，用于展示对称动作。
+普通窗口预览默认不固定种子。四个角色在这个预览里采用相同的造型方向。
 
 状态接口示例：
 
@@ -280,11 +280,11 @@ small_apple = AppleOutline(height=0.3, stroke_width=2.5)
 桌盘宽度依据现有孩子的手长收窄：以预览的构造高度 1.25 为基准，
 放取姿势的手端比主体向外多伸约 0.30。水果恢复原比例并缩小，同时降低桌高与盘深，
 使接触位置可以位于盘沿上方。两个水果的横向间隙约 0.10，底部与盘底相隔约 0.036。
-接触校准使用既有 `left_hand_place` 姿势，手端高度设在盘沿上方约 0.17。
-爸爸、女儿在右侧接触苹果；妈妈、儿子在左侧接触橘子，左侧角色整体镜像。
+接触校准使用两侧的 `hand_place` 姿势，手端高度设在盘沿上方约 0.17。
+爸爸、女儿在右侧用左手接触苹果；妈妈、儿子在左侧用右手接触橘子。
 `contact_layout.make_contact_pose()` 按实际曲线计算位置，不改变手长、角色比例或桌盘、水果尺寸。
 另将高度 0.45、0.35、0.25 的水果点数据逐项与第一版等比例构造结果比较，确认轮廓与比例恢复。
-角色类的默认方向保持原样；镜像发生在这些场景实例上。上下两排的出发位置仍保留，尚未加入走路。
+四人的造型方向保持一致。上下两排的出发位置保留为比例示意，走路见下方独立预览。
 
 从仓库根目录运行：
 
@@ -305,7 +305,7 @@ manimgl pi_family/props_scene.py FamilyTablePreview
 构图中爸爸、妈妈在上排，儿子、女儿在下排，桌盘居中，人物完整可见且互不遮挡。
 预览把爸爸构造高度设为 2.4、妈妈设为 2.16、孩子设为 1.25，保留已有比例，
 不更改角色类的默认尺寸或原来的动作预览。
-左侧为镜像的妈妈、儿子；右侧为原方向的爸爸、女儿，操作手朝向桌盘。
+左侧为妈妈、儿子；右侧为爸爸、女儿，均使用靠近桌盘的手，不翻转角色。
 已检查这四个出发位置：四个角色与桌盘、水果组之间没有边界框重叠。
 
 ## 四个角色的水果接触对比
@@ -323,13 +323,79 @@ python -m pi_family.verify_contact_fit
 | 图片（位于本地 `preview/`） | 角色、方向与目标 | 主体至桌边最小间距 | 动作中手部至桌盘最小间距 |
 | --- | --- | --- | --- |
 | `father_contact.png` | 爸爸在右侧，原方向，放苹果 | 0.380 | 0.021 |
-| `mother_contact.png` | 妈妈在左侧，镜像，放橘子 | 0.323 | 0.023 |
-| `son_contact.png` | 儿子在左侧，镜像，取橘子 | 0.099 | 0.052 |
+| `mother_contact.png` | 妈妈在左侧，原方向，右手放橘子 | 0.648 | 0.067 |
+| `son_contact.png` | 儿子在左侧，原方向，右手取橘子 | 0.289 | 0.126 |
 | `daughter_contact.png` | 女儿在右侧，原方向，取苹果 | 0.098 | 0.053 |
 
 已逐张人工检查实际渲染。自动检查使用实际二次曲线轮廓，分别遍历放置与取回的三段姿势过渡，
 每段采样 31 个时刻，每个角色共 186 个姿势，四人共 744 个。
-验证主体保持固定、镜像方向稳定、手部避开桌盘直线边界与两颗水果内部，
+验证主体保持固定、造型方向一致、手部避开桌盘直线边界与两颗水果内部，
 以及桌盘和水果的点数据保持不变。接触姿势的手部与目标轮廓间隙为 0.002，
 在预览中表现为轻触描边；桌盘距离检查同时为描边留出余量。
 这些结果对应本节尺寸与校准位置，后续改变角色大小或接近位置时应重新运行检查。
+
+## 双手、走路与携带水果
+
+四人保留同一个造型方向。左右手各有伸出 `reach`、取放 `place`、持果 `hold` 姿势，
+共享原版的肩部连接点和身体曲线对应关系；右手基于原来的右侧轮廓补画，没有镜像角色或左手。
+原有两张左手 reach/place SVG 与 `place_left_hand()`、`take_left_hand()` 的轨迹和时长比例保留。
+
+新的 `place_hand()`、`take_hand()` 用 `hand="left"` / `"right"` 指定画面中的手。
+到桌边只动选中的手，另一只手、双腿和面部不由手势动画改写；眨眼与嘴形仍可继续。
+没有水果时动作结束回到 `plain`；取到水果后结束于对应的 `hand_hold`，使水果保持在盘沿上方。
+`place_right_hand()`、`take_right_hand()` 提供不含水果转移的右手简写。
+
+`WalkTo(pi, destination)` 是可传给 `self.play()` 的动画，`walk_to()` 是单角色简写。
+终点是固定的脚底中点 `standing_point(pi)`，不使用会随眨眼、伸手变化的边界框中心。
+双腿交替经历支撑与抬脚阶段，身体小幅起伏；步态按移动距离推进，起步与停步平滑收敛，
+结束时恢复精确的站立轮廓。水平往返都保持原方向，不插入翻转动作。
+`WalkSettings` 的步幅、抬脚、起伏、摆臂幅度均按身体高度设置，四种角色共用。
+支持多个不同角色同时 `self.play(WalkTo(...), WalkTo(...))`；同一角色先结束手势或庆祝再走路。
+
+`carry_fruit()` 会把正常手势提升到持果姿势，并返回 `FruitAttachment`。
+水果是独立对象，跟随实际手端，不加入角色边界框。携带时这只手不摆动，空手轻摆；
+空手行走时两侧手臂轻摆。`take_hand(..., fruit=...)` 在接触时无跳变地接住水果，
+`place_hand(..., fruit=...)` 在放置姿势松手，收手和返程不再带动已放下的水果。
+孩子庆祝时视线关注实际水果，庆祝结束恢复持果姿势；眨眼计时不重置。
+
+以下示例使用已经校准的右手接触位置，让妈妈携带橘子走近桌子并放下：
+
+```python
+from pi_family import carry_fruit, enable_behavior, hand_tip, place_hand, standing_point, walk_to
+from pi_family.contact_layout import make_contact_pose
+
+pi, props = make_contact_pose("mother")
+destination = standing_point(pi).copy()
+offset = props.orange.get_center() - hand_tip(pi, "right")
+pi.change_mode("plain").shift([-2, 0, 0])
+self.add(props, pi)
+behavior = enable_behavior(self, pi)
+carry_fruit(pi, props.orange, hand="right", offset=offset)
+walk_to(self, pi, destination, run_time=2.4)
+place_hand(self, pi, hand="right", fruit=props.orange)
+behavior.parent_placed(pi)
+```
+
+自定义桌边位置时应按放置姿势重新校准手端与水果的位置。`offset` 是手端至水果中心的位移；
+绑定后随角色的局部坐标系移动。`attachment.release()` 可主动结束跟随，且不会移动水果。
+
+从仓库根目录运行：
+
+```powershell
+conda activate manim
+cd exp2/src
+python -m pi_family.render_walking_preview
+python -m pi_family.verify_walking
+manimgl pi_family/walking_scene.py MotherWalkingDemo
+```
+
+另有 `FatherWalkingDemo`、`SonWalkingDemo`、`DaughterWalkingDemo`。
+导出 `preview/family_walking.gif`：四个角色各自走近、取放、表情衔接和返程的约 10 秒合成预览，
+四格中的桌盘各自独立；不是四进程执行顺序或盘子容量模拟。预览固定种子，并明确让儿子展示欢呼、
+女儿展示开心，正常 `child_received()` 调用仍保持独立 50/50 随机。
+`walking_start.png`、`walking_midstep.png`、`walking_arrived.png`、`walking_transferred.png`、
+`walking_celebration.png`、`walking_celebrated.png`、`walking_returned.png` 提供实际渲染的检查画面。
+
+验证覆盖两侧手势、非操作部件固定、双向迈步、抬脚与支撑脚落地、稳定的持果手和摆动的空手、
+到达终点、重复往返与原地调用、取放时水果的所有权切换、盘沿间隙，以及走路期间持续眨眼和扫视。
+旧左手、眼睛、表情及四人桌边接触检查也需一起运行。

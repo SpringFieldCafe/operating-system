@@ -8,7 +8,7 @@ from manimlib import VMobject, smooth
 
 from .expression_geometry import celebration_body_points, mouth_points
 from .face_frame import map_svg_points
-from .hand_poses import source_geometry
+from .hand_poses import source_geometry, hand_tip, pose_body_points
 from .idle_motion import IdleMotion, _mark_face_dynamic
 
 
@@ -34,6 +34,10 @@ def left_hand_focus(pi):
     body, _, arm = source_geometry()
     tip = arm.start + int(np.argmin(body[arm, 0]))
     return pi.body.get_points()[tip].copy()
+
+
+def active_hand_focus(pi):
+    return hand_tip(pi, getattr(pi, "_active_hand", "right" if pi.is_flipped() else "left"))
 
 
 def _interpolate_shape(shape, start, end, alpha):
@@ -69,6 +73,7 @@ class CreatureReaction:
         self.body_goal = self.body.copy()
         self.celebration = None
         self.body_return = None
+        self.pi._body_reaction_active = False
         self.events = []
         if self.is_parent:
             self.ready(0)
@@ -113,7 +118,8 @@ class CreatureReaction:
         fruit = {"苹果": "apple", "橘子": "orange", "桔子": "orange"}.get(fruit, fruit)
         if self.is_parent or fruit != self.fruit:
             raise ValueError("Son receives orange; Daughter receives apple; parents do not celebrate taking fruit.")
-        if self.pi.get_mode() != "plain" or self.celebration is not None or self.body_return is not None:
+        rest_mode = self.pi.get_mode()
+        if rest_mode not in ("plain", "left_hand_hold", "right_hand_hold") or self.celebration is not None or self.body_return is not None:
             raise ValueError("Finish the take/return gesture before starting a celebration.")
         if mode is not None and mode not in ("happy", "hooray"):
             raise ValueError("Choose happy or hooray, or omit mode for independent 50/50 sampling.")
@@ -123,10 +129,14 @@ class CreatureReaction:
         mouth_points(mode)
         self.state = "celebrating"
         self.celebration = (time, mode)
-        self.body_start = _shape(celebration_body_points("plain"))
-        self.body_goal = _shape(body)
+        self.pi._body_reaction_active = True
+        self.body_start = _shape(pose_body_points(rest_mode))
+        self.body_goal = _shape(body if mode == "hooray" else self.body_start.get_points())
         self._set_mouth(mode, time)
-        self.idle.focus_on(look_target if look_target is not None else lambda: left_hand_focus(self.pi), time, self.settings.gaze_duration)
+        attachment = getattr(self.pi, "_fruit_attachment", None)
+        if look_target is None and attachment is not None:
+            look_target = attachment.fruit
+        self.idle.focus_on(look_target if look_target is not None else lambda: active_hand_focus(self.pi), time, self.settings.gaze_duration)
         self.events.append((time, "received", mode))
         return mode
 
@@ -134,7 +144,7 @@ class CreatureReaction:
         if self.body_return is not None:
             started, start = self.body_return
             alpha = (time - started) / self.settings.celebration_exit
-            _interpolate_shape(self.body, start, _shape(celebration_body_points("plain")), alpha)
+            _interpolate_shape(self.body, start, self.body_start, alpha)
             if alpha >= 1:
                 self.body_return = None
             return True
@@ -159,7 +169,7 @@ class CreatureReaction:
                 self._set_mouth("plain", exit_time)
         if self._body_at(time):
             points = map_svg_points(self.body.get_points(), self.pi)
-            plain = celebration_body_points("plain")
+            plain = self.body_start.get_points()
             target = self.body_goal.get_points()
             fixed = np.all(plain == target, axis=1)
             # Keep stationary legs exact even if the whole actor is transformed.
@@ -172,6 +182,7 @@ class CreatureReaction:
             self.events.append((time, "celebration_finished", "plain"))
         self._mouth_at(time)
         self.pi.mouth.set_points(map_svg_points(self.mouth.get_points(), self.pi))
+        self.pi._body_reaction_active = self.celebration is not None or self.body_return is not None
 
 
 class FamilyBehavior(IdleMotion):
@@ -235,8 +246,9 @@ class FamilyBehavior(IdleMotion):
             for actor in self.reactions:
                 owns_body = actor.celebration is not None or actor.body_return is not None
                 actor.celebration = actor.body_return = None
+                actor.pi._body_reaction_active = False
                 if owns_body:
-                    actor.pi.body.set_points(map_svg_points(celebration_body_points("plain"), actor.pi))
+                    actor.pi.body.set_points(map_svg_points(actor.body_start.get_points(), actor.pi))
                 actor.pi.mouth.set_points(map_svg_points(mouth_points("plain"), actor.pi))
                 actor.idle.release_focus(self._time())
                 actor.pi.body.remove_updater(_mark_face_dynamic)

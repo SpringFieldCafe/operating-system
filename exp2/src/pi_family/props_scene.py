@@ -39,8 +39,6 @@ class FamilyTablePreview(Scene):
     def construct(self):
         father, mother = FatherPi(height=2.4), MotherPi(height=2.16)
         son, daughter = SonPi(height=1.25), DaughterPi(height=1.25)
-        mother.flip()
-        son.flip()
         self.family = VGroup(father, mother, son, daughter)
         self.props = make_fruit_table().shift(0.15 * DOWN)
         for pi, x, body_bottom in (
@@ -67,8 +65,8 @@ class _RoleContactPreview(Scene):
         self.character, self.props = make_contact_pose(self.role_key)
         # All four exports use the same frame and unchanged object scales.
         self.camera.frame.set_width(8.2).move_to([0, 0.9, 0])
-        mirror = "镜像" if role.side == -1 else "原方向"
-        title = Text(f"{role.label} · {role.action} · {mirror}",
+        hand = "右手" if role.hand == "right" else "左手"
+        title = Text(f"{role.label} · {role.action} · {hand}",
                      font="Microsoft YaHei", font_size=25)
         title.move_to([0, 2.7, 0])
         self.add(self.props, self.character, title)

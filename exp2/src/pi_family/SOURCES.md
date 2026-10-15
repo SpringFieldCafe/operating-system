@@ -34,7 +34,8 @@
 在动画结束时同步姿势名，以兼容当前 ManimGL 对已经对齐的对象跳过对齐回调的行为。
 `upstream/` 中的原作者代码没有新增改动。
 
-手部 `change()` 接口提供 `plain`、`left_hand_reach`、`left_hand_place` 三个姿势。
+最初的手部 `change()` 接口提供 `plain`、`left_hand_reach`、`left_hand_place` 三个姿势；
+新增的右手和持果姿势见本文末尾。
 调用不存在的姿势会明确报错，不会用普通姿势冒充。
 
 持续小动作参考同一提交的 `custom/characters/pi_creature_scene.py`：
@@ -95,5 +96,26 @@
 
 `contact_layout.py` 用实际 ManimGL 曲线采样计算四个角色的接触位置，
 `render_contact_previews.py` 与 `verify_contact_fit.py` 提供同尺度对比图和姿势过渡检查。
-左侧妈妈、儿子的镜像使用既有 `PiCreature.flip()`，手臂仍使用原来的三套姿势。
-未新增或改写角色 SVG、手部目标 SVG 或作者的 `upstream/` 代码。
+四个角色保持同一造型方向，左侧妈妈、儿子使用新增的右手姿势，右侧爸爸、女儿使用左手。
+原始正常 SVG、最初两张左手目标 SVG 和作者的 `upstream/` 代码保留。
+
+## 双手与走路
+
+`PiCreatures_right_hand_reach.svg`、`PiCreatures_right_hand_place.svg` 与左右 `hand_hold` SVG
+由本项目在旧版正常 SVG 上派生，使用 `hand_poses.py` 生成。仅改动各自的手臂区间，
+保留原版其他五条路径、双腿、肩部连接点和切线；右手没有使用镜像的左手轮廓。
+这些派生 SVG 保留 `assets/LICENSE.txt` 的原版 MIT 授权。
+
+曾核对原作者旧版
+[WalkPiCreature](https://github.com/3b1b/manim/blob/400aa0aada85a39b5f1fafa1c5572af17165047f/animation/simple_animations.py#L137-L157)
+及
+[get_step_intermediate](https://github.com/3b1b/manim/blob/400aa0aada85a39b5f1fafa1c5572af17165047f/mobject/creatures.py#L137-L151)，
+以及 `3b1b/videos/_2015/eulers_characteristic_formula.py` 的 `WalkingRandolph` 场景。
+本项目借鉴双腿局部变形与角色移动组合的思路，未导入或复制早期 PNG 部件、Python 2 动画类。
+`walking.py` 的支撑/抬脚周期、按距离推进、起停收敛、身体起伏及空手摆动由本项目编写，
+继续使用当前 ManimGL 的 `Animation`、`smooth` 和既有 SVG 顶点。
+
+作者的 `WaveArm` 将单手动作与走路分开；`_2018/eop/bayes.py` 中将吉他与手臂加入角色，
+使道具跟随整体变换。本项目的 `carrying.py` 使用独立水果 updater 跟随当前手端，
+不将水果加入角色边界框；这套取放、持果、表情衔接和角色行为组合属于本项目实现，
+不称作原作者现成的持物走路代码。新增 Python 代码沿用本目录 CC BY-NC-SA 4.0 授权。
