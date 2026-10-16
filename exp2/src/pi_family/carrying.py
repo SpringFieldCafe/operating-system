@@ -38,6 +38,9 @@ class FruitAttachment:
 
     def update(self):
         if self.active:
+            # A concurrent opacity/pose animation may have interpolated an old
+            # bounding box. Align actual fruit points to the hand each frame.
+            self.fruit.refresh_bounding_box(recurse_down=True)
             _, right, up = frame_axes(self.pi)
             offset = self.local_offset[0]*right + self.local_offset[1]*up
             offset[2] += self.z_offset

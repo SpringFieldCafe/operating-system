@@ -48,15 +48,33 @@ def _translation(paths):
     return np.array([original[0].end.x - target[0].end.x, original[0].end.y - target[0].end.y, 0])
 
 
-@lru_cache(maxsize=5)
+@lru_cache(maxsize=6)
 def mouth_points(mode):
-    paths = _reference_paths(mode) if mode in ("happy", "hooray") else _paths(ASSETS / MOUTH_FILES[mode])
+    reference = mode in ("happy", "hooray", "angry")
+    paths = _reference_paths(mode) if reference else _paths(ASSETS / MOUTH_FILES[mode])
     mouth = VMobjectFromSVGPath(se.Path(paths[5].attrib["d"]))
-    if mode in ("happy", "hooray"):
+    if reference:
         mouth.shift(_translation(paths))
     # All expressions keep one point count, including during saved hand animations.
     mouth.insert_n_curves(60 - mouth.get_num_curves())
     return mouth.get_points().copy()
+
+
+@lru_cache(maxsize=2)
+def angry_eye_points(index):
+    """Reference eye silhouette, upright, one unit wide, with its bottom at 0.
+
+    Each existing eye supplies its own width/position, preserving Baby sizing.
+    The source's slanted upper contour supplies the angry eyelid shape.
+    """
+    if index not in (0, 1):
+        raise ValueError("Choose eye 0 or 1.")
+    eye = VMobjectFromSVGPath(se.Path(_reference_paths("angry")[index].attrib["d"]))
+    points = eye.get_points().copy()
+    points[:, 1] *= -1
+    eye.set_points(points)
+    origin = np.array([eye.get_x(), eye.get_bottom()[1], 0])
+    return (points - origin) / eye.get_width()
 
 
 def _reference_subdivision(reference, target, cuts=100):

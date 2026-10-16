@@ -122,6 +122,8 @@ class CreatureIdle:
         self.gaze_events = []
         self.last_time = 0.0
         self.focus_target = None
+        self.anger = 0.0
+        self.angry_eyes = None
 
     def focus_on(self, target, time, duration=0.35):
         """Hand off from the currently visible gaze, including mid-scan frames."""
@@ -199,6 +201,11 @@ class CreatureIdle:
                     points = center + delta[:, :1] * right + delta[:, 1:2] * up
                     destination.set_points(points)
 
+    def prepare_angry_eyes(self):
+        if self.angry_eyes is None:
+            from .angry_face import AngryEyes
+            self.angry_eyes = AngryEyes(self.face)
+
     def update(self, time, blink=True):
         if time < self.last_time:
             raise ValueError("Idle animation time must move forwards.")
@@ -213,9 +220,12 @@ class CreatureIdle:
             self.next_blink += self.blink_random.uniform(*self.settings.blink_interval)
 
         face = self.face
+        if self.anger > 0:
+            self.prepare_angry_eyes()
+            face = self.angry_eyes.apply(self.face.copy(), self.anger)
         alpha = (time - self.blink_started) / self.settings.blink_duration
         if blink and 0 <= alpha < 1:
-            face = self.face.copy()
+            face = face.copy()
             animation = Blink(face, rate_func=there_and_back, run_time=self.settings.blink_duration)
             animation.begin()
             animation.interpolate(alpha)

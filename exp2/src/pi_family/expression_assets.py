@@ -1,4 +1,4 @@
-"""Fetch the two public reference SVGs into an untracked local asset cache."""
+"""Fetch public reference SVGs into an untracked local asset cache."""
 
 from hashlib import sha256
 from pathlib import Path
@@ -12,12 +12,13 @@ BASE_URL = f"https://raw.githubusercontent.com/CaftBotti/manim_pi_creatures/{COM
 HASHES = {
     "happy": "bf4f55a7ad22b710317672db13436cc2da3f99d66b9367f8817768cfe80e6ecd",
     "hooray": "eb0553be9a962a8f8db910f3057ad3e7d824c4066e22c7b6d9dba3d973be5bf7",
+    "angry": "baeb224f6b4dc62f7defa04e07998f2d6c76c48652bdb012ec0cdc787a61d4ca",
 }
 
 
 def reference_path(mode):
-    if mode not in ("happy", "hooray"):
-        raise ValueError("Only happy and hooray are reference poses.")
+    if mode not in HASHES:
+        raise ValueError(f"Reference poses: {', '.join(HASHES)}.")
     path = REFERENCE / f"PiCreatures_{mode}.svg"
     if not path.is_file():
         raise FileNotFoundError("Run python pi_family/expression_assets.py to fetch the reference SVGs.")
@@ -28,7 +29,7 @@ def reference_path(mode):
 
 def main():
     REFERENCE.mkdir(parents=True, exist_ok=True)
-    for mode in ("happy", "hooray"):
+    for mode in HASHES:
         name = f"PiCreatures_{mode}.svg"
         with urlopen(f"{BASE_URL}/{name}", timeout=30) as response:
             data = response.read(32_768)

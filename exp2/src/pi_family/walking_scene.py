@@ -13,7 +13,7 @@ from pi_family.contact_layout import CONTACT_ROLES, make_contact_pose
 
 
 class _WalkingRoleDemo(Scene):
-    default_camera_config = {"background_color": "#171B23"}
+    default_camera_config = {"background_color": "#000000"}
     role_key = "father"
     behavior_seed = 43
 

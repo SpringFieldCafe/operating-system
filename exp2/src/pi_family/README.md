@@ -2,6 +2,8 @@
 
 这里准备角色、动作、空心水果、二维桌盘及预览，不包含进程同步或实验演示逻辑。
 
+完整交互实验由相邻的 `fruit_lab` 包组合这些能力，运行与场景命令见 [实验说明](../../README.md)。
+
 | 类 | 造型 | 构造高度 | 身体颜色 |
 | --- | --- | --- | --- |
 | `FatherPi` | 原版 Randolph 成人比例 | 3.0 | 深蓝 `#176477` |
@@ -168,7 +170,7 @@ ManimGL 场景命令也已执行验证。
 | 角色与状态 | 行为 |
 | --- | --- |
 | 父母可操作 | 每轮独立抽一次：正常、浅笑各 50%；这一轮保持稳定 |
-| 四人阻塞等待 | 平滑变成轻微撇嘴，只改变嘴巴 |
+| 四人阻塞等待 | 先轻微撇嘴；连续等待满 2 秒后，眼部轮廓与嘴形一起平滑变成愤怒 |
 | 儿子成功取回橘子 | 收回手以后，开心、欢呼各 50% |
 | 女儿成功取回苹果 | 收回手以后，开心、欢呼各 50% |
 | 孩子庆祝结束 | 恢复正常嘴形与手部姿势，从当前眼神接回随机扫视 |
@@ -176,6 +178,7 @@ ManimGL 场景命令也已执行验证。
 “等待”表示同步条件尚未满足：例如父母没有可用盘子位置，
 或孩子尚未取得自己需要的水果。普通停顿、动画的 `Scene.wait()` 不会自动变成等待表情。
 `ready()` 和 `waiting()` 都允许重复通知同一状态；重复通知不会重新抽表情或重启嘴形过渡。
+重复 `waiting()` 也不会重新计算 2 秒等待时间；一次等待结束后再进入等待，重新计时。
 父母通过 `parent_placed()` 开始下一轮并重新抽取，或显式调用 `ready(pi, new_round=True)`。
 
 孩子的开心使用公开收藏副本中的笑嘴；欢呼使用其张嘴笑与两侧手端上扬轮廓。
@@ -202,7 +205,7 @@ python pi_family/expression_assets.py
 manimgl pi_family/preview_scene.py FamilyExpressionDemo
 ```
 
-下载命令只读取两个固定版本的公开参考 SVG，核验 SHA-256 后保存到
+下载命令读取开心、欢呼、愤怒三份固定版本的公开参考 SVG，核验 SHA-256 后保存到
 `pi_family/assets/reference/`。原始参考文件仅保存在本地缓存，不随本仓库提交；
 运行预览前需下载一次。来源与角色设计许可说明见 `SOURCES.md`。
 无需更换当前 ManimGL 环境。
@@ -254,8 +257,8 @@ self.wait(behavior.reaction_settings.celebration_duration)
 | --- | --- | --- |
 | `AppleOutline` | 整体高 0.45、宽约 0.40 | 默认 `RED`，完整苹果轮廓加一片空心叶子，无缺口或高光 |
 | `OrangeOutline` | 整体高 0.45、宽约 0.40 | 默认 `YELLOW`，圆形轮廓加短果梗 |
-| `SimpleTable` | 桌面宽 1.25、高 0.80、底座宽 0.72 | 默认 `GREY_B`，三条线组成上宽下窄的工字形 |
-| `OpenPlate` | 开口宽 1.15、底宽 1.0、高 0.18 | 默认 `GREY_B`，仅三个边，上方敞开的浅盘 |
+| `SimpleTable` | 桌面宽 1.06、高 0.80、底座宽 0.72 | 默认 `GREY_B`，三条线组成工字形，桌面比原版缩短约 15% |
+| `OpenPlate` | 盘线宽 1.0 | 默认 `GREY_B`，仅一条横线，无两侧斜边 |
 
 线宽统一为 2.5，比 ManimGL 默认的 4 细，接近现有角色睫毛的 2.4。
 水果和盘子的填充透明度为 0；所有部件都位于二维平面，没有阴影、纹理或透视。
@@ -278,9 +281,9 @@ small_apple = AppleOutline(height=0.3, stroke_width=2.5)
 这些只是图形定位点；此处没有盘子容量状态、进程或信号量。
 
 桌盘宽度依据现有孩子的手长收窄：以预览的构造高度 1.25 为基准，
-放取姿势的手端比主体向外多伸约 0.30。水果恢复原比例并缩小，同时降低桌高与盘深，
-使接触位置可以位于盘沿上方。两个水果的横向间隙约 0.10，底部与盘底相隔约 0.036。
-接触校准使用两侧的 `hand_place` 姿势，手端高度设在盘沿上方约 0.17。
+放取姿势的手端比主体向外多伸约 0.30。水果恢复原比例并缩小，同时保持较低的桌高，
+使接触位置可以位于盘线上方。两个水果的横向间隙约 0.10，底部与盘线相隔约 0.036。
+接触校准使用两侧的 `hand_place` 姿势，手端高度设在盘线上方约 0.35。
 爸爸、女儿在右侧用左手接触苹果；妈妈、儿子在左侧用右手接触橘子。
 `contact_layout.make_contact_pose()` 按实际曲线计算位置，不改变手长、角色比例或桌盘、水果尺寸。
 另将高度 0.45、0.35、0.25 的水果点数据逐项与第一版等比例构造结果比较，确认轮廓与比例恢复。
@@ -342,7 +345,7 @@ python -m pi_family.verify_contact_fit
 
 新的 `place_hand()`、`take_hand()` 用 `hand="left"` / `"right"` 指定画面中的手。
 到桌边只动选中的手，另一只手、双腿和面部不由手势动画改写；眨眼与嘴形仍可继续。
-没有水果时动作结束回到 `plain`；取到水果后结束于对应的 `hand_hold`，使水果保持在盘沿上方。
+没有水果时动作结束回到 `plain`；取到水果后结束于对应的 `hand_hold`，使水果保持在盘线上方。
 `place_right_hand()`、`take_right_hand()` 提供不含水果转移的右手简写。
 
 `WalkTo(pi, destination)` 是可传给 `self.play()` 的动画，`walk_to()` 是单角色简写。
@@ -397,5 +400,67 @@ manimgl pi_family/walking_scene.py MotherWalkingDemo
 `walking_celebration.png`、`walking_celebrated.png`、`walking_returned.png` 提供实际渲染的检查画面。
 
 验证覆盖两侧手势、非操作部件固定、双向迈步、抬脚与支撑脚落地、稳定的持果手和摆动的空手、
-到达终点、重复往返与原地调用、取放时水果的所有权切换、盘沿间隙，以及走路期间持续眨眼和扫视。
+到达终点、重复往返与原地调用、取放时水果的所有权切换、盘线间隙，以及走路期间持续眨眼和扫视。
 旧左手、眼睛、表情及四人桌边接触检查也需一起运行。
+
+## 等待后的愤怒表情素材
+
+四个角色共用同一套面部规则，依旧通过 `enable_behavior()` 返回的控制器调用。
+这里仅准备表情、切换接口和独立素材预览，没有进程、信号量、互斥锁或调度逻辑。
+等待由调用方显式通知，`self.wait()`、走路和普通停顿本身不会触发等待状态。
+
+| 表情阶段 | 默认行为 |
+| --- | --- |
+| 刚进入等待 | 0.3 秒平滑变成已有的轻微撇嘴，眼部保持正常轮廓 |
+| 本次等待持续满 2 秒 | 再用 0.4 秒同时改变眼部轮廓和嘴形，过渡到愤怒 |
+| 等待期间 | 保持原有身体、手脚和持果姿势；随机扫视与独立眨眼继续 |
+| 通知可操作 | 从当前可见表情平滑恢复，父母回到本轮正常/浅笑，孩子回到正常 |
+| 等待未满 2 秒便结束 | 取消本次愤怒触发；下次等待重新计时 |
+
+愤怒的眼部轮廓和皱嘴来自此前公开收藏仓库中的 `PiCreatures_angry.svg`，
+仅作为本地参考缓存，来源与 SHA-256 见 `SOURCES.md`。
+不把整个参考角色替换进场景；眼形按当前每只眼睛的宽度、位置适配，
+保留成人/Baby 的尺寸、瞳孔尺寸和女性的六根睫毛。眼形变化时睫毛随眼沿移动，
+瞳孔仍跟随既有扫视，并限制在变化后的眼部轮廓内；随后再合成作者的 `Blink`。
+恢复时接回原来的眼形，既有眨眼和扫视计时不重启。
+
+```python
+from pi_family import FatherPi, ReactionSettings, enable_behavior
+
+father = FatherPi()
+self.add(father)
+behavior = enable_behavior(
+    self, father,
+    settings=ReactionSettings(waiting_angry_delay=2.0, angry_duration=0.4),
+)
+behavior.prepare_angry_faces()  # 窗口播放前准备轮廓，避免首次切换时解析素材
+behavior.waiting(father)    # 素材示意：由未来的状态通知调用
+self.wait(3.0)             # 只用于本段独立预览
+behavior.ready(father)      # 无需等表情恢复完，调用方即可继续操作
+self.wait(0.6)
+```
+
+逻辑状态仍是 `waiting`；`get_expression(pi)` 在愤怒过渡开始后返回 `angry`。
+`ReactionSettings.waiting_angry_delay` 与 `angry_duration` 仅控制显示，
+不会申请/释放资源、决定执行顺序或阻止下一项动作。不要用 `pi.change("angry")`
+替换整个人物；使用上面的控制器，以合成现有眨眼、睫毛、身体姿势和手部动作。
+
+准备本地参考素材、运行独立预览和验证：
+
+```powershell
+conda activate manim
+cd exp2/src
+python pi_family/expression_assets.py
+python -m pi_family.render_angry_preview
+python -m pi_family.verify_angry
+manimgl pi_family/angry_scene.py FamilyAngryDemo
+```
+
+生成 `preview/family_angry.gif`，以及 `angry_ready.png`、`angry_waiting.png`、
+`angry_angry.png`、`angry_recovered.png`、`angry_short_wait_finished.png`，均被 Git 忽略。
+预览手动展示正常/浅笑、短暂撇嘴、持续等待后的愤怒、恢复与再次短暂等待，
+使用固定种子 12，并不模拟四进程的执行次序。
+
+验证覆盖四人、普通/两侧持果姿势、精确的 2 秒阈值与 0.4 秒过渡、短暂等待取消、
+重复通知和再次等待、恢复中断、镜像/缩放、瞳孔不越出眼形、睫毛贴合、眨眼计时不变，
+以及与原有两侧取放、持果和走路动画的兼容性。

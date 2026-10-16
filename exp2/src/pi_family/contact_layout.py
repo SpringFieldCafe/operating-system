@@ -30,7 +30,7 @@ CONTACT_ROLES = {
     "son": ContactRole("儿子", SonPi, 1.25, "orange", -1, "取橘子"),
     "daughter": ContactRole("女儿", DaughterPi, 1.25, "apple", 1, "取苹果"),
 }
-CONTACT_ABOVE_RIM = 0.17
+CONTACT_ABOVE_FLOOR = 0.35
 CONTACT_GAP = 0.002
 
 
@@ -77,7 +77,7 @@ def make_contact_pose(role_key):
     hand = hand_contour(pi, 51, side=role.hand)
     outward_x = role.side * hand[:, 0]
     tip = hand[np.argmin(outward_x)]
-    dy = props.plate.get_top()[1] + CONTACT_ABOVE_RIM - tip[1]
+    dy = props.plate.get_start()[1] + CONTACT_ABOVE_FLOOR - tip[1]
     target = getattr(props, role.fruit)
     constraints = []
     for part in target.family_members_with_points():
