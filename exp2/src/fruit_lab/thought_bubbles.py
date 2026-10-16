@@ -14,19 +14,34 @@ THOUGHT_DIRECTIONS = {"father": 1, "mother": -1, "son": -1, "daughter": 1}
 # These 2t–3t comparison settings are an adaptation, not measured IMO parameters.
 THOUGHT_PHASE_SPEEDS = {"father": (2.20, 2.70), "mother": (2.55, 2.10),
                         "son": (2.90, 2.40), "daughter": (2.35, 2.80)}
+CLOUD_VARIANT_COUNT = 4
 
 
-@lru_cache(maxsize=2)
-def _reference_cloud(kind):
+def assign_cloud_variants(roles, seed=None):
+    """Shuffle the main and connector sets independently, without replacement."""
+    roles = tuple(roles)
+    if len(roles) > CLOUD_VARIANT_COUNT:
+        raise ValueError("There are only four distinct cloud outlines per set.")
+    rng = np.random.default_rng(seed)
+    main = rng.permutation(CLOUD_VARIANT_COUNT)
+    connector = rng.permutation(CLOUD_VARIANT_COUNT)
+    return {role: (int(a), int(b)) for role, a, b in zip(roles, main, connector)}
+
+
+@lru_cache(maxsize=2 * CLOUD_VARIANT_COUNT)
+def _reference_cloud(kind, variant=0):
     # Reference-frame contours with rounded lobe subdivisions requested by the
     # user. Keep their original aspect ratios when sizing the two clouds.
-    path = Path(__file__).with_name("assets") / f"thought_{kind}.svg"
+    if kind not in ("main", "connector") or variant not in range(CLOUD_VARIANT_COUNT):
+        raise ValueError("Choose a main/connector cloud variant from 0 to 3.")
+    suffix = "" if variant == 0 else f"_{variant}"
+    path = Path(__file__).with_name("assets") / f"thought_{kind}{suffix}.svg"
     return SVGMobject(str(path))[0]
 
 
-def cloud_outline(width, kind="main"):
+def cloud_outline(width, kind="main", variant=0):
     """Soften unevenness slightly, then uniformly scale the reference outline."""
-    cloud = _reference_cloud(kind).copy()
+    cloud = _reference_cloud(kind, variant).copy()
     # Pull the reference toward its smooth elliptical envelope by only 18%.
     # The existing lobes remain; their unequal heights/depths are less stark.
     points = cloud.get_points().copy()
@@ -67,18 +82,22 @@ class _LobeMotion:
 
 
 class ThoughtCloud(VGroup):
-    def __init__(self, content, head, direction, child=False, seed=None, phase_speeds=(2.5, 2.7)):
+    def __init__(self, content, head, direction, child=False, seed=None, phase_speeds=(2.5, 2.7),
+                 shape_variants=(0, 0)):
         super().__init__()
         self.direction = direction
         self.head = np.array(head, dtype=float).copy()
+        self.shape_variants = tuple(shape_variants)
         # Reduce empty space around the fixed text while keeping the reference
         # contour's proportions. The detached cloud keeps its existing size.
-        self.cloud = cloud_outline(0.85 * max(2.35, content.get_width() + 0.95))
+        self.cloud = cloud_outline(0.85 * max(2.35, content.get_width() + 0.95),
+                                   variant=self.shape_variants[0])
         lift = 0 if child else 0.05  # Parents' main clouds rise another 4 px.
         self.center = self.head + np.array([direction * (1.65 if child else 0.95),
                                            (0.43 if child else 0.94) + lift, 0])
         self.cloud.move_to(self.center)
-        self.connector = cloud_outline(0.345, kind="connector").set_stroke(width=2)
+        self.connector = cloud_outline(0.345, kind="connector",
+                                       variant=self.shape_variants[1]).set_stroke(width=2)
         # Position the small cloud in the visible gap, slightly toward the
         # large contour. Use its nearest edge rather than its distant center.
         edge = np.array([self.cloud.quick_point_from_proportion(alpha)

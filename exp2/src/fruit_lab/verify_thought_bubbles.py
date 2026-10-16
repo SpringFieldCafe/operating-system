@@ -19,7 +19,8 @@ def main():
     from pi_family import WalkTo
     from pi_family.contact_layout import sample_contour
     from .scene import FruitLabScene
-    from .thought_bubbles import THOUGHT_PHASE_SPEEDS, ThoughtCloud
+    from .thought_bubbles import (THOUGHT_DIRECTIONS, THOUGHT_PHASE_SPEEDS, ThoughtCloud,
+                                  assign_cloud_variants, cloud_outline)
     from .visuals import WAIT_WORDS, text
 
     scene = FruitLabScene(camera_config={"fps": 30})
@@ -96,7 +97,53 @@ def main():
                     parent_low, _ = bounds(view.labels[parent][1])
                     assert parent_low[1] - child_high[1] > 0.35, (child, parent, "row gap")
 
+        # Distinct file names alone are insufficient: measure the actual static
+        # silhouettes after sizing/softening, independently of motion phases.
+        pairings = set()
+        for seed in range(100):
+            assignment = assign_cloud_variants(view.actors, seed=seed)
+            assert assignment == assign_cloud_variants(view.actors, seed=seed)
+            assert all({pair[i] for pair in assignment.values()} == set(range(4)) for i in (0, 1))
+            pairings.update(assignment.values())
+        assert len(pairings) == 16, "Main and connector shuffles are coupled"
+        angles = np.linspace(-np.pi, np.pi, 720, endpoint=False)
+        minimum_differences = {}
+        for kind, width, minimum_pixels in (("main", 1.9975, 3.0), ("connector", 0.345, 0.8)):
+            profiles = []
+            ratios = []
+            for variant in range(4):
+                outline = cloud_outline(width, kind=kind, variant=variant)
+                contour = sample_contour(outline, 17) - outline.get_center()
+                polar = np.arctan2(contour[:, 1], contour[:, 0])
+                radius = np.linalg.norm(contour[:, :2], axis=1)
+                order = np.argsort(polar)
+                profiles.append(np.interp(angles, polar[order], radius[order], period=2 * np.pi))
+                ratios.append(outline.get_height() / outline.get_width())
+            assert np.ptp(ratios) < 0.001, (kind, "aspect envelope changed")
+            differences = [80 * np.max(np.abs(a - b)) for a, b in combinations(profiles, 2)]
+            assert min(differences) > minimum_pixels, (kind, "silhouettes too similar", differences)
+            minimum_differences[kind] = round(min(differences), 3)
+
         samples = 0
+        # Every role sees all 16 main/connector combinations with every caption.
+        # This also checks each silhouette at several moving-wave states.
+        for reason in WAIT_WORDS:
+            content = text(WAIT_WORDS[reason], 23).set_max_width(2.9)
+            for main_shift in range(4):
+                for connector_shift in range(4):
+                    view.bubbles = {key: ThoughtCloud(
+                        content.copy(), view.heads[key], THOUGHT_DIRECTIONS[key],
+                        child=key in ("son", "daughter"), seed=31 + index,
+                        phase_speeds=THOUGHT_PHASE_SPEEDS[key],
+                        shape_variants=((index + main_shift) % 4, (index + connector_shift) % 4))
+                        for index, key in enumerate(view.actors)}
+                    for elapsed in (0, 0.4, 0.9, 1.5, 2.4):
+                        for bubble in view.bubbles.values():
+                            bubble.update_motion(elapsed)
+                        check_layout()
+                        samples += 1
+        view.bubbles = {}
+
         for reason in WAIT_WORDS:
             for key in view.actors:
                 view.waiting(key, reason)
@@ -105,6 +152,7 @@ def main():
                 if reason == "space" and i in (5, 20, 45):
                     save(f"entrance_{i:02d}.png")
             assert all(b.entrance_track.done for b in view.bubbles.values())
+            assert all(len({b.shape_variants[i] for b in view.bubbles.values()}) == 4 for i in (0, 1))
             seeds = [seed for bubble in view.bubbles.values() for seed in bubble.motion_seeds]
             motions = [motion for bubble in view.bubbles.values()
                        for motion in (bubble._main_motion, bubble._connector_motion)]
@@ -117,6 +165,7 @@ def main():
                 save("reference_clouds.png")
                 save("outward_clouds.png")
                 save("centered_connectors.png")
+                save("variant_clouds.png")
             original = {k: b for k, b in view.bubbles.items()}
             for key in view.actors:
                 view.waiting(key, reason)
@@ -185,8 +234,9 @@ def main():
         # original radius while the bulge advances around that radius field.
         phase_checks = 0
         directions = set()
-        for seed, speeds in zip((31, 73, 127, 229), THOUGHT_PHASE_SPEEDS.values()):
-            probe = ThoughtCloud(text("等待"), [0, 0, 0], 1, seed=seed, phase_speeds=speeds)
+        for variant, (seed, speeds) in enumerate(zip((31, 73, 127, 229), THOUGHT_PHASE_SPEEDS.values())):
+            probe = ThoughtCloud(text("等待"), [0, 0, 0], 1, seed=seed, phase_speeds=speeds,
+                                 shape_variants=(variant, variant))
             for motion in (probe._main_motion, probe._connector_motion):
                 directions.add(np.sign(motion.phase_speed))
                 basis = np.column_stack((np.sin(6 * motion.angles),
@@ -250,11 +300,16 @@ def main():
             tick()
         assert not view.bubbles and not view.effects
         for _ in range(3):
+            previous_assignment = view.cloud_variants
             for key in view.actors:
                 view.waiting(key, "space")
+            assert view.cloud_variants is not previous_assignment, "A fresh group did not reshuffle"
+            assignment = view.cloud_variants
             tick(0.2)
             for key in view.actors:
                 view.waiting(key, "mutex")
+            assert view.cloud_variants is assignment, "Replacement reshuffled a visible group"
+            assert all(b.shape_variants == assignment[key] for key, b in view.bubbles.items())
             tick(0.2)
             removed = list(view.bubbles.values())
             for key in view.actors:
@@ -285,11 +340,11 @@ def main():
         if args.render and frames:
             # GIF timing is quantized to 10 ms; this pattern preserves 15 FPS.
             durations = [60 if index % 3 == 1 else 70 for index in range(len(frames))]
-            frames[0].save(OUTPUT / "centered_connectors.gif", save_all=True, append_images=frames[1:],
+            frames[0].save(OUTPUT / "variant_clouds.gif", save_all=True, append_images=frames[1:],
                            duration=durations, loop=0, disposal=2)
-            closeups[0].save(OUTPUT / "centered_connectors_closeup.gif", save_all=True, append_images=closeups[1:],
+            closeups[0].save(OUTPUT / "variant_clouds_closeup.gif", save_all=True, append_images=closeups[1:],
                              duration=durations, loop=0, disposal=2)
-        print(f"THOUGHT_CLOUDS_OK samples={samples}; phase_checks={phase_checks}; outward clouds; row gap >28px; eight independent seeds/phases/speeds; pure sine; 2t-3t; fixed anchors; no contour noise/drift; bounds; glyphs; ambient pause; seeds/FPS; walk clearance; interrupted cleanup", flush=True)
+        print(f"THOUGHT_CLOUDS_OK samples={samples}; phase_checks={phase_checks}; variant_min_difference_px={minimum_differences}; 4+4 silhouettes; independent nonrepeating shuffles; all role/caption/shape combinations; fade reservations; outward clouds; row gap >28px; eight independent seeds/phases/speeds; pure sine; fixed anchors; bounds; glyphs; ambient pause; walk clearance; interrupted cleanup", flush=True)
     finally:
         if hasattr(scene, "lab"):
             scene.lab.close()

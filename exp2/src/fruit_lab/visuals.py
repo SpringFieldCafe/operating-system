@@ -15,7 +15,8 @@ from pi_family.reactions import FamilyBehavior
 from pi_family.idle_motion import _mark_face_dynamic
 from .engine import ROLES, LABELS
 from .math_assets import tex
-from .thought_bubbles import ThoughtCloud, THOUGHT_DIRECTIONS, THOUGHT_PHASE_SPEEDS
+from .thought_bubbles import (ThoughtCloud, THOUGHT_DIRECTIONS, THOUGHT_PHASE_SPEEDS,
+                              assign_cloud_variants)
 
 FONT = "SimSun"
 FRUIT_SLIDE_DURATION = 0.45
@@ -159,6 +160,7 @@ class Presentation:
         self._last_ambient_time = lab.ambient_time
         self.actors, self.homes, self.contacts, self.offsets = {}, {}, {}, {}
         self.heads, self.bubbles, self.bubble_reasons = {}, {}, {}
+        self.cloud_variants = {}
         self.tracks, self.effects, self.signals = {}, [], {}
         self.plate_fruits = {}
         self.carried = {}
@@ -235,11 +237,18 @@ class Presentation:
         if self.bubble_reasons.get(key) == reason:
             return
         self.clear_bubble(key)
+        # Keep reservations while any cloud is visible, including FadeOut.
+        # Reshuffling only between groups avoids cross-role duplicates when a
+        # waiting reason changes or one character's cloud returns early.
+        if not self.cloud_variants or (not self.bubbles and not any(
+                tag is not None and tag.startswith("bubble-exit:") for _, tag in self.effects)):
+            self.cloud_variants = assign_cloud_variants(ROLES)
         content = text(WAIT_WORDS[reason], 23)
         content.set_max_width(2.9)
         # Pin to a stable, open-eyed head anchor; blinking must not move the box.
         bubble = ThoughtCloud(content, self.heads[key], THOUGHT_DIRECTIONS[key],
-                              child=key in ("son", "daughter"), phase_speeds=THOUGHT_PHASE_SPEEDS[key])
+                              child=key in ("son", "daughter"), phase_speeds=THOUGHT_PHASE_SPEEDS[key],
+                              shape_variants=self.cloud_variants[key])
         self.bubbles[key], self.bubble_reasons[key] = bubble, reason
         self.scene.add(bubble)
         # Match PiCreatureBubbleIntroduction, including its native timing.
