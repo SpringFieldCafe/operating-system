@@ -21,7 +21,7 @@ class _Capture:
 
 def _grid(frames):
     width, height = frames[0].size
-    canvas = Image.new("RGB", (width*2, height*2), "#171B23")
+    canvas = Image.new("RGB", (width*2, height*2), "#000000")
     for index, frame in enumerate(frames):
         canvas.paste(frame, ((index % 2)*width, (index // 2)*height))
     return canvas
@@ -58,7 +58,7 @@ def main():
     adaptive = atlas.quantize(colors=240)
     # Thin hollow outlines occupy few pixels. Reserve their exact colors so
     # palette quantization cannot turn the yellow orange into a dim olive.
-    fixed = ("#171B23", "#176477", "#B83F49", "#77C9EF", "#F27983", "#FFFF00",
+    fixed = ("#000000", "#176477", "#B83F49", "#77C9EF", "#F27983", "#FFFF00",
              "#FC6255", "#FFFFFF", "#000000", "#DCA0AD", "#333B48", "#BBBBBB",
              "#FFFF80", "#FF9999", "#888888", "#444444")
     palette = Image.new("P", (1, 1))

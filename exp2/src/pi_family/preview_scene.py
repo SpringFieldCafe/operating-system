@@ -11,7 +11,7 @@ from pi_family import Blink, enable_idle, enable_behavior, make_family, place_le
 
 
 class FamilyPortrait(Scene):
-    default_camera_config = {"background_color": "#171B23"}
+    default_camera_config = {"background_color": "#000000"}
 
     def construct(self):
         self.family = make_family()

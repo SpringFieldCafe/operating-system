@@ -31,8 +31,13 @@ class _PoseAnimation(_MethodAnimation):
                 points = submob.get_points().copy()
                 # Ordinary float32 lerp can round even identical endpoints.
                 # Stationary vertices are copied exactly on every frame.
-                points[unchanged] = original_points[unchanged]
-                submob.set_points(points)
+                # A live angry-eye overlay may replace facial topology while
+                # this body/hand animation is running. The face controller
+                # composes those parts afterwards; only aligned geometry can
+                # use the stationary-vertex correction.
+                if points.shape == original_points.shape:
+                    points[unchanged] = original_points[unchanged]
+                    submob.set_points(points)
 
     def finish(self):
         super().finish()

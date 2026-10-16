@@ -1,7 +1,7 @@
 """Small, hollow 2D props built directly with ManimGL geometry."""
 
 import numpy as np
-from manimlib import Circle, GREY_B, Line, RED, UP, VGroup, VMobject, YELLOW
+from manimlib import Circle, GREY_B, Line, RED, UP, VGroup, VMobject, VectorizedPoint, YELLOW
 
 
 PROP_STROKE_WIDTH = 2.5
@@ -67,7 +67,7 @@ class OrangeOutline(VGroup):
 class SimpleTable(VGroup):
     """Front-view I shape: a wide top, a single support, a narrower foot."""
 
-    def __init__(self, width=1.25, height=0.8, base_width=0.72,
+    def __init__(self, width=1.06, height=0.8, base_width=0.72,
                  color=GREY_B, stroke_width=PROP_STROKE_WIDTH, **kwargs):
         super().__init__(**kwargs)
         style = dict(stroke_color=color, stroke_width=stroke_width)
@@ -80,30 +80,26 @@ class SimpleTable(VGroup):
         self.add(self.top, self.support, self.foot)
 
 
-class OpenPlate(VMobject):
-    """Three sides of an upward-open trapezoid, with room for two fruits."""
+class OpenPlate(Line):
+    """One horizontal floor line, with two transformable fruit anchors."""
 
-    def __init__(self, width=1.15, base_width=1.0, height=0.18,
+    def __init__(self, width=1.0,
                  color=GREY_B, stroke_width=PROP_STROKE_WIDTH, **kwargs):
-        super().__init__(stroke_color=color, stroke_width=stroke_width,
-                         fill_opacity=0, **kwargs)
-        self.set_points_as_corners([
-            _point(-width / 2, height), _point(-base_width / 2, 0),
-            _point(base_width / 2, 0), _point(width / 2, height),
-        ])
-        self.center()
+        super().__init__(_point(-width / 2, 0), _point(width / 2, 0),
+                         stroke_color=color, stroke_width=stroke_width, **kwargs)
+        # Invisible geometry carries clearance through group scale/rotate/flip.
+        # It has no stroke or fill, and does not add a visible plate rim.
+        self._fruit_clearance = VectorizedPoint(_point(0, 0.036))
+        self.add(self._fruit_clearance)
 
     def fruit_positions(self):
         """Return two bottom-alignment anchors that follow plate transforms.
 
         These are visual positions, not synchronization or capacity state.
         """
-        anchors = self.get_points()[::2]
-        left, right = anchors[1:3]
-        base = right - left
-        # A small gap keeps hollow fruit outlines clear of the plate's floor.
-        upward = anchors[0] - left + anchors[-1] - right
-        return tuple(left + fraction * base + 0.10 * upward
+        base = self.get_end() - self.get_start()
+        center = self._fruit_clearance.get_center()
+        return tuple(center + (fraction - 0.5) * base
                      for fraction in (0.25, 0.75))
 
 

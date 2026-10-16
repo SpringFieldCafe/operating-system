@@ -12,7 +12,7 @@ from pi_family.contact_layout import CONTACT_ROLES, make_contact_pose
 
 
 class FruitPropsPreview(Scene):
-    default_camera_config = {"background_color": "#171B23"}
+    default_camera_config = {"background_color": "#000000"}
 
     def construct(self):
         title = Text("空心水果与二维桌盘", font="Microsoft YaHei", font_size=32)
@@ -34,7 +34,7 @@ class FruitPropsPreview(Scene):
 
 
 class FamilyTablePreview(Scene):
-    default_camera_config = {"background_color": "#171B23"}
+    default_camera_config = {"background_color": "#000000"}
 
     def construct(self):
         father, mother = FatherPi(height=2.4), MotherPi(height=2.16)
@@ -57,7 +57,7 @@ class FamilyTablePreview(Scene):
 
 
 class _RoleContactPreview(Scene):
-    default_camera_config = {"background_color": "#171B23"}
+    default_camera_config = {"background_color": "#000000"}
     role_key = "daughter"
 
     def construct(self):

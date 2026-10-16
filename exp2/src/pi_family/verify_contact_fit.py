@@ -117,6 +117,18 @@ def verify_role(role_key):
 
 
 def main():
+    from .props import OpenPlate, SimpleTable
+    plate = OpenPlate()
+    assert np.allclose(plate.get_points()[:, 1:], 0)
+    assert plate.get_width() < SimpleTable().top.get_width() < 1.25
+    anchors = np.array(plate.fruit_positions())
+    origin = np.zeros(3)
+    plate.scale(1.6, about_point=origin).rotate(np.pi / 3, about_point=origin)
+    plate.flip(axis=np.array([0, 1, 0]), about_point=origin).shift([0.4, -0.2, 0])
+    rotation = np.array([[0.5, -np.sqrt(3) / 2, 0], [np.sqrt(3) / 2, 0.5, 0], [0, 0, 1]])
+    expected = (1.6 * anchors @ rotation.T) * [-1, 1, -1] + [0.4, -0.2, 0]
+    assert np.allclose(plate.fruit_positions(), expected, atol=2e-6)
+    print("plate: one floor line; narrower tabletop; fruit anchors survive scale, rotation and mirror.")
     for key in CONTACT_ROLES:
         body_gap, prop_gap, contact_gap, checked = verify_role(key)
         print(f"{key}: body-table {body_gap:.4f}; hand-props {prop_gap:.4f}; "

@@ -119,3 +119,24 @@
 使道具跟随整体变换。本项目的 `carrying.py` 使用独立水果 updater 跟随当前手端，
 不将水果加入角色边界框；这套取放、持果、表情衔接和角色行为组合属于本项目实现，
 不称作原作者现成的持物走路代码。新增 Python 代码沿用本目录 CC BY-NC-SA 4.0 授权。
+
+## 愤怒表情
+
+原作者的视频代码使用 `angry` 模式，例如
+[`_2026/hairy_ball/supplements.py`](https://github.com/3b1b/videos/blob/306a1346a356c7a7b097875ceb51c5cd67d0a56c/_2026/hairy_ball/supplements.py#L485)。
+本项目的具体参考素材来自同一个公开收藏副本：
+[`PiCreatures_angry.svg`](https://github.com/CaftBotti/manim_pi_creatures/blob/6a5babc6518d7d7e604c503db98abdbb269d087e/PiCreature/PiCreatures_angry.svg)，
+SHA-256 为 `baeb224f6b4dc62f7defa04e07998f2d6c76c48652bdb012ec0cdc787a61d4ca`。
+收藏者声明其 `PiCreature/` 素材来自原作者网站；不保证这一副本与最新视频内部素材同版。
+它与开心、欢呼参考一样，仅下载到被 Git 忽略的 `assets/reference/`，不随项目发布，
+不重新授权为 MIT。
+
+`expression_geometry.py` 提取参考的皱嘴和两只眼部轮廓。
+`angry_face.py` 将轮廓按各自原有眼宽与眼底定位，对齐闭合曲线的方向和起点后平滑变形，
+保留 Baby 大眼比例与瞳孔尺寸，让睫毛随眼沿移动，并约束瞳孔位置。
+`idle_motion.py` 先沿用作者的视线计算，再合成这层眼形，最后叠加原作者的 `Blink`；
+没有改写 `upstream/` 中的作者代码。
+
+等待满 2 秒后再逐渐生气、0.4 秒的眼口过渡、重复等待通知的去重、平滑恢复，以及
+`angry_scene.py` 的四人素材预览均为本项目的行为设计，不称作原作者的调度或等待实现。
+这些代码不管理进程和资源，身体、手臂、双腿与已有持果关系仍由现有动画负责。

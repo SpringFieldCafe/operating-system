@@ -19,9 +19,11 @@ class ReactionSettings:
     celebration_enter: float = 0.45
     celebration_hold: float = 0.9
     celebration_exit: float = 0.45
+    waiting_angry_delay: float = 2.0
+    angry_duration: float = 0.4
 
     def __post_init__(self):
-        if any(value <= 0 for value in vars(self).values()):
+        if any(not np.isfinite(value) or value <= 0 for value in vars(self).values()):
             raise ValueError("Reaction durations must be positive.")
 
     @property
@@ -68,6 +70,10 @@ class CreatureReaction:
         self.mouth_start = self.mouth.copy()
         self.mouth_goal = self.mouth.copy()
         self.mouth_started = -float("inf")
+        self.mouth_duration = settings.mouth_duration
+        self.waiting_started = None
+        self.anger_start = self.anger_goal = 0.0
+        self.anger_started = -float("inf")
         self.body = _shape(celebration_body_points("plain"))
         self.body_start = self.body.copy()
         self.body_goal = self.body.copy()
@@ -79,15 +85,34 @@ class CreatureReaction:
             self.ready(0)
 
     def _mouth_at(self, time):
-        alpha = (time - self.mouth_started) / self.settings.mouth_duration
+        alpha = (time - self.mouth_started) / self.mouth_duration
         _interpolate_shape(self.mouth, self.mouth_start, self.mouth_goal, alpha)
 
-    def _set_mouth(self, expression, time):
+    def _set_mouth(self, expression, time, duration=None):
         self._mouth_at(time)
         self.mouth_start = self.mouth.copy()
         self.mouth_goal = _shape(mouth_points(expression))
         self.mouth_started = time
+        self.mouth_duration = self.settings.mouth_duration if duration is None else duration
         self.expression = expression
+
+    def _anger_at(self, time):
+        alpha = smooth(np.clip((time-self.anger_started)/self.settings.angry_duration, 0, 1))
+        self.idle.anger = (1-alpha)*self.anger_start+alpha*self.anger_goal
+
+    def _set_anger(self, amount, time):
+        self._anger_at(time)
+        self.anger_start, self.anger_goal = self.idle.anger, amount
+        self.anger_started = time
+
+    def _advance_waiting(self, time):
+        if self.waiting_started is None or self.expression == "angry":
+            return
+        deadline = self.waiting_started+self.settings.waiting_angry_delay
+        if time >= deadline:
+            self._set_mouth("angry", deadline, self.settings.angry_duration)
+            self._set_anger(1.0, deadline)
+            self.events.append((deadline, "impatient", "angry"))
 
     def _cancel_celebration(self, time):
         if self.celebration is not None:
@@ -99,6 +124,9 @@ class CreatureReaction:
     def ready(self, time, new_round=False):
         if self.state == "ready" and not new_round:
             return self.expression
+        self._advance_waiting(time)
+        self.waiting_started = None
+        self._set_anger(0.0, time)
         self._cancel_celebration(time)
         self.state = "ready"
         mode = self.random.choice(("plain", "parent_smile")) if self.is_parent else "plain"
@@ -110,6 +138,8 @@ class CreatureReaction:
         if self.state == "waiting":
             return
         self._cancel_celebration(time)
+        self.waiting_started = time
+        self._set_anger(0.0, time)
         self.state = "waiting"
         self._set_mouth("waiting", time)
         self.events.append((time, "waiting", "waiting"))
@@ -127,6 +157,9 @@ class CreatureReaction:
         # Load/validate before taking ownership of the actor's state.
         body = celebration_body_points(mode)
         mouth_points(mode)
+        self._advance_waiting(time)
+        self.waiting_started = None
+        self._set_anger(0.0, time)
         self.state = "celebrating"
         self.celebration = (time, mode)
         self.pi._body_reaction_active = True
@@ -162,6 +195,8 @@ class CreatureReaction:
         return True
 
     def update(self, time):
+        self._advance_waiting(time)
+        self._anger_at(time)
         if self.celebration is not None:
             started, _ = self.celebration
             exit_time = started + self.settings.celebration_enter + self.settings.celebration_hold
@@ -219,6 +254,14 @@ class FamilyBehavior(IdleMotion):
     def waiting(self, pi):
         self._actor(pi).waiting(self._time())
 
+    def prepare_angry_faces(self):
+        """Optionally build/validate facial contours before interactive playback."""
+        if not self.active:
+            raise RuntimeError("The behavior controller has stopped.")
+        for controller in self.controllers:
+            controller.prepare_angry_eyes()
+        return self
+
     def parent_placed(self, pi):
         actor = self._actor(pi)
         if not actor.is_parent:
@@ -247,6 +290,7 @@ class FamilyBehavior(IdleMotion):
                 owns_body = actor.celebration is not None or actor.body_return is not None
                 actor.celebration = actor.body_return = None
                 actor.pi._body_reaction_active = False
+                actor.idle.anger = 0.0
                 if owns_body:
                     actor.pi.body.set_points(map_svg_points(actor.body_start.get_points(), actor.pi))
                 actor.pi.mouth.set_points(map_svg_points(mouth_points("plain"), actor.pi))
