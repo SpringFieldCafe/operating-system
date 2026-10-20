@@ -85,17 +85,10 @@ def main():
                     assert separated(bubble.connector, view.actors[key].eyelashes), (key, "small cloud touches eyelashes")
                 for actor_key, pi in view.actors.items():
                     assert clears_body(bubble.cloud, pi.body), (key, actor_key, "body")
-                    for label in view.labels[actor_key]:
-                        assert separated(bubble.cloud, label), (key, actor_key, "label")
-                for hud in (view.title, view.run_label, view.caption, view.props.table, view.props.plate):
+                for hud in (view.props.table, view.props.plate):
                     assert separated(bubble.cloud, hud), (key, "HUD/props")
             for (key_a, a), (key_b, b) in combinations(view.bubbles.items(), 2):
                 assert separated(a, b, 0.12), (key_a, key_b, "cloud overlap")
-            for child, parent in (("son", "mother"), ("daughter", "father")):
-                if child in view.bubbles:
-                    _, child_high = bounds(view.bubbles[child].cloud)
-                    parent_low, _ = bounds(view.labels[parent][1])
-                    assert parent_low[1] - child_high[1] > 0.35, (child, parent, "row gap")
 
         # Distinct file names alone are insufficient: measure the actual static
         # silhouettes after sizing/softening, independently of motion phases.
@@ -344,7 +337,7 @@ def main():
                            duration=durations, loop=0, disposal=2)
             closeups[0].save(OUTPUT / "variant_clouds_closeup.gif", save_all=True, append_images=closeups[1:],
                              duration=durations, loop=0, disposal=2)
-        print(f"THOUGHT_CLOUDS_OK samples={samples}; phase_checks={phase_checks}; variant_min_difference_px={minimum_differences}; 4+4 silhouettes; independent nonrepeating shuffles; all role/caption/shape combinations; fade reservations; outward clouds; row gap >28px; eight independent seeds/phases/speeds; pure sine; fixed anchors; bounds; glyphs; ambient pause; walk clearance; interrupted cleanup", flush=True)
+        print(f"THOUGHT_CLOUDS_OK samples={samples}; phase_checks={phase_checks}; variant_min_difference_px={minimum_differences}; 4+4 silhouettes; independent nonrepeating shuffles; all role/caption/shape combinations; fade reservations; outward clouds; eight independent seeds/phases/speeds; pure sine; fixed anchors; bounds; glyphs; ambient pause; walk clearance; interrupted cleanup", flush=True)
     finally:
         if hasattr(scene, "lab"):
             scene.lab.close()

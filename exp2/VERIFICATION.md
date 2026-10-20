@@ -303,3 +303,57 @@ GLFW Python 绑定 2.10.2、RenderCanvas 2.7.2、wgpu 0.32.0。
   `python -m pi_family.verify_contact_fit` 的四角色取放接触与盘子变换检查通过。
 - `python -m fruit_lab.verify_visuals` 通过：真实四进程各完成两次请求，1,010 帧取得
   等待、愤怒、接触、庆祝和行走重叠五类标记，最终水果配平，暂停时身体固定、眨眼继续。
+
+## 界面文字精简与原气泡保留
+
+复核日期：2026-10-20。移除顶部标题、运行状态、动态说明、角色姓名与统计、
+详细同步讲解，以及终端帮助、命令反馈、主动查询结果和错误提示。底部 e/a/o
+许可计数保留，命令入口、补全、历史建议、事件记录与本地诊断继续有效。
+新增 `python -m fruit_lab` 静默入口，依赖导入提示转存本地日志，使用同一交互场景。
+
+按最终确认，等待气泡保留全部原文与原动画。`thought_bubbles.py` 与修改前版本无差异；
+对代码语法树比较确认四种等待文案、`waiting`、`clear_bubble`、`tick` 完全一致，
+包括 `AnimationGroup(DrawBorderThenFill(...), Write(...))`、时长、淡出及外观时钟。
+思考框验证仅删除已移除界面文字的碰撞检查，原有文字和动画检查继续执行。
+
+- `python -m fruit_lab.verify_engine`：八项真实进程检查通过。
+- `python -m fruit_lab.verify_scenarios`：七个预设、运行中重置、取消、暂停与单步通过。
+- 恢复原气泡后重新运行 `python -m fruit_lab.verify_visuals`：1,010 帧，
+  等待、愤怒、接触、庆祝、行走重叠五类标记齐全，最终请求配平，暂停检查通过。
+- `python -m fruit_lab.verify_thought_bubbles --render`：2,338 次采样、八组相位检查通过，
+  包括原文字稳定、所有大小云组合、暂停期间动画、往返路径与中断清理。
+- `python -m fruit_lab.verify_window` 独立运行通过：十次最小化/恢复、隐藏期间四进程配平、
+  零尺寸保护、错误日志和进程回收有效。
+- 本地真实 IPython 集成检查：正常命令、参数错误、语法错误、未知命令、未知魔法命令
+  均无解释输出；错误仍写入已脱敏日志，`save_log()` 仍保存状态和真实事件。
+- 在实际静默启动入口中输入 `fat` 后按 Tab，补全得到 `father`，历史建议仍显示；
+  `father(1)` 实际完成一次，主动查询与保存无说明文字，错误命令后可继续，`exit()` 正常退出。
+- 已人工检查实际渲染图：原气泡文字与底部计数清楚，其他指定文字不再出现。
+  本地预览位于 `.privacy-review/quiet-ui/quiet_waiting.png` 和
+  `.privacy-review/thought-clouds/variant_clouds.gif`，均被 Git 忽略。
+
+## 四行业务信号量公式与原生书写动画
+
+复核日期：2026-10-20。按最终确认，将原底部计数移到画面中央偏上，
+四行依次显示 `empty=2`、`apple=0`、`orange=0`、`mutex=1`，全部使用预编译 TeX。
+等号与数字分别纵向对齐，字号沿用原数值的 27。内部条件锁不显示。
+首次启动同时书写四个完整等式；交互时只将旧数字淡出，再用原生 `Write` 书写新数字。
+重置、切换演示复用同一组名称与等号；显示时钟独立于业务暂停、单步和调速。
+参考源码和适配范围见 `src/fruit_lab/SOURCES.md` 的 `WriteLaplace` 条目。
+
+- `python -m fruit_lab.verify_semaphores --render` 通过：1,887 次采样将显示目标与
+  四个真实信号量的 `get_value()` 比较，覆盖已预留资源、互斥的 0/1、暂停单步、
+  四角色各三次并发配平、重置后的显示对象复用，以及所有采样期间前缀点坐标完全不变。
+  公式与人物、手持水果、等待气泡的包围盒均保留至少 0.06 场景单位的间隔。
+- `python -m fruit_lab.verify_scenarios` 通过：七个预设、运行中重置、取消、
+  暂停与单步、盘内水果几何检查正常。
+- `python -m fruit_lab.verify_visuals` 通过：1,044 帧取得等待、愤怒、接触、庆祝、
+  行走重叠五类标记；真实四进程请求配平，暂停期间身体固定、眨眼继续。
+- `python -m fruit_lab.verify_thought_bubbles` 通过：2,338 次采样、八组相位检查，
+  原气泡文字、字形稳定、所有 16 种大小云组合、暂停与原有往返路径正常。
+  `engine.py`、`thought_bubbles.py` 没有修改；等待气泡的创建与淡出方法与原版一致。
+- 新四个 SVG 已实际用 LaTeX 与 dvisvgm 编译。顺便修正 Windows 重复换行的输出问题；
+  既有数学 SVG 的内容保持不变，运行时仍不需要安装 TeX。
+- 已人工检查初始、单步、真实等待、四气泡同时显示画面，以及入场与数字变化的动画采样。
+  预览保存在本地 `.privacy-review/semaphores/`，静帧 `waiting.png` 展示实际等待状态，
+  `write_and_update.gif` 展示书写与单步时的数字变化；均被 Git 忽略。

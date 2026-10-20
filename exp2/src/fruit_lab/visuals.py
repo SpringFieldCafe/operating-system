@@ -1,19 +1,18 @@
 """Nonblocking action tracks, original Pi assets, and head-pinned thought clouds."""
 
-from collections import deque
 from dataclasses import dataclass
 import math
 
 import numpy as np
 from manimlib import (Animation, AnimationGroup, DrawBorderThenFill, FadeIn, FadeOut,
-                      LaggedStart, Text, Write, UP, DOWN, LEFT, RIGHT, VGroup)
+                      Text, Write, VGroup, UP, DOWN)
 
 from pi_family import WalkTo, carry_fruit, hand_tip, standing_point
 from pi_family.contact_layout import CONTACT_ROLES, make_contact_pose
 from pi_family.props import AppleOutline, OrangeOutline, make_fruit_table
 from pi_family.reactions import FamilyBehavior
 from pi_family.idle_motion import _mark_face_dynamic
-from .engine import ROLES, LABELS
+from .engine import ROLES
 from .math_assets import tex
 from .thought_bubbles import (ThoughtCloud, THOUGHT_DIRECTIONS, THOUGHT_PHASE_SPEEDS,
                               assign_cloud_variants)
@@ -24,21 +23,10 @@ FRUIT_CLEARANCE = 0.04
 # At 80 px/unit, lift parents 8 px and lower children 12 px.
 HOME_Y = {"father": 0.85, "mother": 0.85, "son": -2.80, "daughter": -2.80}
 WAIT_WORDS = {"space": "盘子满了\n等一个空位", "apple": "还没有苹果\n我再等一等", "orange": "还没有橘子\n我再等一等", "mutex": "有人正在取放\n等盘子空闲"}
-PHASE_WORDS = {"idle": "待机", "preparing": "接住水果", "outbound": "走向桌子", "contact": "取放水果", "arranging": "盘内整理",
-               "returning": "返回原位", "celebrating": "开心 / 欢呼", "displaying": "展示水果", "finishing": "完成本次请求"}
 
 
 def text(words, size=24, color="#FFFFFF"):
     return Text(words, font=FONT, font_size=size, color=color)
-
-
-def reveal(mobject, duration=0.7):
-    """A soft, slightly growing glyph entrance, not the default Write stroke."""
-    glyphs = list(mobject)
-    if not glyphs:
-        return FadeIn(mobject, run_time=duration)
-    return LaggedStart(*(FadeIn(glyph, scale=1.055, run_time=0.28) for glyph in glyphs),
-                       lag_ratio=0.12, run_time=duration)
 
 
 @dataclass
@@ -103,6 +91,84 @@ class Track:
             dt = 0
 
 
+class SemaphoreDisplay:
+    """TeX permit values, with fixed prefixes and nonblocking native Write clips."""
+    names = ("empty", "apple", "orange", "mutex")
+
+    def __init__(self, scene):
+        self.scene = scene
+        self.values = [2, 0, 0, 1]
+        self.targets = self.values.copy()
+        self.tracks = {}
+        self.templates = {i: tex(str(i), font_size=27) for i in range(3)}
+        rows = []
+        for index, (name, value) in enumerate(zip(self.names, self.values)):
+            row = tex(rf"\mathrm{{{name}}}={value}", font_size=27)
+            # The final two TeX glyphs are the equals sign and initial digit.
+            row.shift(np.array([0, 4.05 - 0.5 * index, 0]) - row[-2].get_center())
+            rows.append(row)
+        # TeX digits have different ink widths inside their equal-width cells.
+        # Align the visible digit centers as well as the equals signs.
+        number_x = max(row[-1].get_x() for row in rows)
+        for row in rows:
+            row[-1].set_x(number_x)
+        block = VGroup(*rows)
+        block.shift(-block.get_x() * np.array([1, 0, 0]))
+        self.prefixes = [VGroup(*list(row)[:-1]) for row in rows]
+        self.digits = [VGroup(row[-1]) for row in rows]
+        self.anchors = [digit.get_bottom().copy() for digit in self.digits]
+        self.bounds = block.get_all_points().copy()
+        self.attach()
+        # Same animation as the author's WriteLaplace title scene, applied to
+        # TeX outlines. All four complete initial equations start together.
+        intro = AnimationGroup(*(Write(row) for row in rows))
+        self.intro = Track(scene, iter([Clip(intro, intro.get_run_time())]))
+        self.intro.tick(0)
+
+    def attach(self):
+        # Reset rebuilds the actors, while these exact prefixes stay in place.
+        self.scene.add(*self.prefixes, *self.digits)
+
+    def update(self, snapshot):
+        slots = snapshot["slots"]
+        counts = [slots.count(None), slots.count("apple"), slots.count("orange")]
+        for slot, key in enumerate(snapshot["reserved"]):
+            if key in ("father", "mother") and slots[slot] is None:
+                counts[0] -= 1
+            elif key in ("son", "daughter") and slots[slot] is not None:
+                counts[1 if slots[slot] == "apple" else 2] -= 1
+        self.targets = counts + [int(snapshot["owner"] is None)]
+
+    def change_digit(self, index):
+        yield Clip(FadeOut(self.digits[index]), 0.2)
+        # Coalesce rapid changes to the latest value; never queue stale counts
+        # or delay the worker processes to accommodate a display animation.
+        value = self.targets[index]
+        digit = self.templates[value].copy().move_to(self.anchors[index], aligned_edge=DOWN)
+        self.digits[index] = digit
+        self.values[index] = value
+        self.scene.add(digit)
+        write = Write(digit)
+        yield Clip(write, write.get_run_time())
+
+    def tick(self, dt):
+        if self.intro is not None:
+            self.intro.tick(dt)
+            if not self.intro.done:
+                return
+            self.intro = None
+            dt = 0
+        for index, track in list(self.tracks.items()):
+            track.tick(dt)
+            if track.done:
+                self.tracks.pop(index)
+        for index, value in enumerate(self.targets):
+            if index not in self.tracks and value != self.values[index]:
+                track = Track(self.scene, self.change_digit(index))
+                self.tracks[index] = track
+                track.tick(0)
+
+
 class _IdleClock:
     """Reactions use business time; focus and random eye motion use ambient time."""
     def __init__(self, idle, lab):
@@ -155,7 +221,7 @@ class LiveBehavior(FamilyBehavior):
 
 
 class Presentation:
-    def __init__(self, scene, lab):
+    def __init__(self, scene, lab, semaphores=None):
         self.scene, self.lab = scene, lab
         self._last_ambient_time = lab.ambient_time
         self.actors, self.homes, self.contacts, self.offsets = {}, {}, {}, {}
@@ -165,14 +231,6 @@ class Presentation:
         self.plate_fruits = {}
         self.carried = {}
         self.phases = dict.fromkeys(ROLES, "idle")
-        self.labels = {}
-        self.detail_rows = deque(maxlen=3)
-        self.last_hud = None
-        self.title = text("实验二 · 进程同步", 34).move_to([0, 4.1, 0])
-        self.run_label = text("运行中 · 1.0×", 19).move_to([0, 3.62, 0])
-        self.caption = text("输入 help_cmds() 查看命令", 23).move_to([0, 2.35, 0])
-        self.caption.set_max_width(4.4)
-        scene.add(self.title, self.run_label, self.caption)
         props = make_fruit_table()
         self.props = props
         scene.add(props.table, props.plate)
@@ -188,27 +246,9 @@ class Presentation:
             self.heads[key] = pi.eyes.get_top().copy() + 0.12 * UP
             self.actors[key] = pi
             scene.add(pi)
-            label = text(role.label, 24, pi.get_color()).move_to(home + 0.36 * DOWN)
-            state = text("待机 · 待办 0 · 完成 0", 16).next_to(label, DOWN, buff=0.12)
-            self.labels[key] = (label, state)
-            scene.add(label, state)
         self.behavior = LiveBehavior(scene, tuple(self.actors.values()), lab)
-        self.digits = {i: tex(str(i), font_size=27) for i in range(3)}
-        self.counters = []
-        for x, symbol, label in ((-2.2, "e", "可用空位"), (0, "a", "可取苹果"), (2.2, "o", "可取橘子")):
-            heading = text(label, 18).move_to([x - 0.3, -4.0, 0])
-            prefix = tex(symbol + "=", font_size=25).next_to(heading, RIGHT, buff=0.14)
-            digit = self.digits[0].copy().next_to(prefix, RIGHT, buff=0.08)
-            self.counters.append(digit)
-            scene.add(heading, prefix, digit)
-        self.detail_title = text("同步讲解 · P 申请 / V 释放", 20).move_to([0, -1.95, 0])
-        self.owner_label = text("盘子操作权：空闲", 18).move_to([0, -2.32, 0])
-        self.detail_lines = VGroup()
-        self.tex_operations = {name: tex(formula, font_size=22) for name, formula in {
-            "P(empty)": "P(e)", "P(apple)": "P(a)", "P(orange)": "P(o)", "P(mutex)": "P(m)",
-            "V(empty)": "V(e)", "V(apple)": "V(a)", "V(orange)": "V(o)", "V(mutex)": "V(m)"}.items()}
-        scene.add(self.detail_title, self.owner_label, self.detail_lines)
-        self.set_detail(lab.detailed)
+        self.semaphores = semaphores if semaphores is not None else SemaphoreDisplay(scene)
+        self.semaphores.attach()
 
     def effect(self, animation, duration=0.5, tag=None):
         if tag is not None:
@@ -218,16 +258,6 @@ class Presentation:
         track = Track(self.scene, run())
         self.effects.append((track, tag))
         return track
-
-    def say_caption(self, words):
-        if getattr(self, "caption_words", None) == words:
-            return
-        self.caption_words = words
-        self.scene.remove(self.caption)
-        self.caption = text(words, 23).move_to([0, 2.35, 0])
-        self.caption.set_max_width(4.4)
-        self.scene.add(self.caption)
-        self.effect(lambda: reveal(self.caption, 0.5), 0.5, "caption")
 
     def waiting(self, key, reason):
         if reason not in WAIT_WORDS:
@@ -263,10 +293,6 @@ class Presentation:
             exit_animation = FadeOut(bubble)
             self.effect(exit_animation, exit_animation.get_run_time(), "bubble-exit:" + str(id(bubble)))
 
-    def set_detail(self, enabled):
-        for part in (self.detail_title, self.owner_label, self.detail_lines):
-            part.set_opacity(float(enabled))
-
     def on_event(self, e):
         key, kind = e.get("role"), e["kind"]
         if kind == "state" and key not in self.tracks:
@@ -278,24 +304,8 @@ class Presentation:
             self.behavior.ready(self.actors[key])
             self.signals[e["task"]] = set()
             self.tracks[key] = Track(self.scene, self.trip(e))
-            self.say_caption(LABELS[ROLES.index(key)] + "获得取放机会")
         elif kind in ("committed", "released", "finished"):
             self.signals[e["task"]].add(kind)
-        if e.get("operations"):
-            self.detail_rows.append((key, e["operations"]))
-            self.refresh_detail()
-
-    def refresh_detail(self):
-        self.scene.remove(self.detail_lines)
-        lines = []
-        for i, (key, operations) in enumerate(self.detail_rows):
-            label = text(LABELS[ROLES.index(key)], 18, self.actors[key].get_color())
-            line = VGroup(label, *(self.tex_operations[op].copy() for op in operations))
-            line.arrange(RIGHT, buff=0.18).move_to([0, -2.72 - i * 0.34, 0])
-            lines.append(line)
-        self.detail_lines = VGroup(*lines)
-        self.detail_lines.set_opacity(float(self.lab.detailed))
-        self.scene.add(self.detail_lines)
 
     def take_fruit(self, key, slot):
         """Bind the reserved permit to the closest interchangeable picture.
@@ -377,14 +387,12 @@ class Presentation:
             fruit.move_to(self.positions[near], aligned_edge=DOWN)
             self.carried.pop(key)
             self.plate_fruits[slot] = fruit
-            self.say_caption(role.label + "放入" + ("苹果" if role.fruit == "apple" else "橘子"))
             yield Clip(lambda: pi.change("plain"), 0.55)
             self.behavior.parent_placed(pi)
         else:
             self.plate_fruits.pop(slot)
             carry_fruit(pi, fruit, hand=role.hand, snap=False)
             self.carried[key] = fruit
-            self.say_caption(role.label + "取到" + ("苹果" if role.fruit == "apple" else "橘子"))
             yield Clip(lambda: pi.change(prefix + "reach"), 0.3)
             yield Clip(lambda: pi.change(prefix + "hold"), 0.5)
             targets = {index: 1 if isinstance(item, AppleOutline) else 0
@@ -443,35 +451,10 @@ class Presentation:
         self.behavior.update()
         for fruit in self.carried.values():
             fruit._hand_attachment.update()
+        self.semaphores.tick(ambient_dt)
 
     def hud(self, snapshot):
-        role_info = tuple((v["pending"], v["completed"], v["reason"]) for v in snapshot["roles"].values())
-        identity = (tuple(snapshot["slots"]), snapshot["owner"], role_info, tuple(self.phases.values()),
-                    self.lab.paused, self.lab.stepping, self.lab.rate, self.lab.detailed, self.lab.reset_pending)
-        if identity == self.last_hud:
-            return
-        self.last_hud = identity
-        # Counters show available permits, including reservations during travel.
-        slots = snapshot["slots"]
-        counts = [slots.count(None), slots.count("apple"), slots.count("orange")]
-        for slot, key in enumerate(snapshot["reserved"]):
-            if key in ("father", "mother") and slots[slot] is None:
-                counts[0] -= 1
-            elif key in ("son", "daughter") and slots[slot] is not None:
-                counts[1 if slots[slot] == "apple" else 2] -= 1
-        for digit, count in zip(self.counters, counts):
-            point = digit.get_center().copy()
-            digit.become(self.digits[count]).move_to(point)
-        state_words = "正在收尾重置" if self.lab.reset_pending else "单步推进" if self.lab.stepping else "已暂停 · 云朵与眼睛继续" if self.lab.paused else "运行中"
-        self.run_label.become(text(f"{state_words} · {self.lab.rate:g}×", 19).move_to([0, 3.62, 0]))
-        owner = snapshot["owner"]
-        self.owner_label.become(text("盘子操作权：" + ("空闲" if owner is None else LABELS[ROLES.index(owner)]), 18).move_to([0, -2.32, 0]))
-        self.owner_label.set_opacity(float(self.lab.detailed))
-        for key, info in snapshot["roles"].items():
-            label, state = self.labels[key]
-            phase = self.phases[key]
-            word = PHASE_WORDS[phase] if phase != "idle" else "等待" if key in self.bubbles else "已暂停" if info["reason"] == "paused" else "待机"
-            state.become(text(f"{word} · 待办 {info['pending']} · 完成 {info['completed']}", 16).next_to(label, DOWN, buff=0.12))
+        self.semaphores.update(snapshot)
 
     def close(self):
         self.behavior.stop()
