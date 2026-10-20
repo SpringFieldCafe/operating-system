@@ -69,3 +69,5 @@ latex_cache/
 !/exp*/report/.gitkeep
 
 # Lab instruction documents in exp*/doc remain eligible for tracking.
+# Keep the open, unsanitized experiment 4 original local; publish the reviewed copy.
+/exp4/doc/操作系统-实验4.doc
