@@ -1,0 +1,3 @@
+# Reuse the existing 'manim' conda environment when available.
+# Exact clean upstream source revision used by this experiment's verification:
+manimgl @ git+https://github.com/3b1b/manim.git@fafa083a4fb274bba9cabde0b6e2f50ba6da0622
