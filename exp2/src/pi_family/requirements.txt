@@ -1,0 +1,2 @@
+# Use the existing 'manim' conda environment; this is ManimGL, not Manim CE.
+manimgl==1.7.2

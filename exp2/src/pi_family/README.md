@@ -1,0 +1,466 @@
+# 实验 2 的四个 PiCreature
+
+这里准备角色、动作、空心水果、二维桌盘及预览，不包含进程同步或实验演示逻辑。
+
+完整交互实验由相邻的 `fruit_lab` 包组合这些能力，运行与场景命令见 [实验说明](../../README.md)。
+
+| 类 | 造型 | 构造高度 | 身体颜色 |
+| --- | --- | --- | --- |
+| `FatherPi` | 原版 Randolph 成人比例 | 3.0 | 深蓝 `#176477` |
+| `MotherPi` | 成人比例，爸爸的 90%，仅加睫毛 | 2.7 | 深红 `#B83F49` |
+| `SonPi` | 原版 BabyPiCreature | 1.5 | 天蓝 `#77C9EF` |
+| `DaughterPi` | 相同 Baby 比例，仅加睫毛 | 1.5 | 浅红 `#F27983` |
+
+构造高度是传给原作者构造器的数值。Baby 随后把眼睛放大 1.2 倍，瞳孔再放大 1.3 倍，
+所以最终整体边界高度可能稍大于 1.5。儿子与女儿的身体、眼睛和瞳孔尺寸相同；
+睫毛不参与身体缩放。没有蝴蝶结、头发、衣服或其他饰物。
+
+## 运行
+
+使用现有 `manim` conda 环境。已在 Python 3.12.15、ManimGL 1.7.2 的本地源码安装中验证。
+依赖记录见 `requirements.txt`。以下命令从仓库根目录开始：
+
+```powershell
+conda activate manim
+cd exp2/src
+python -m pi_family.render_previews
+```
+
+在 `pi_family/preview/` 生成四人合照 `family.png` 和视线、眨眼预览 `family_motion.gif`。
+预览使用 ManimGL 实际渲染，不需要 FFmpeg；生成文件被 Git 忽略。
+
+使用 ManimGL 窗口观看：
+
+```powershell
+manimgl pi_family/preview_scene.py FamilyPortrait
+manimgl pi_family/preview_scene.py FamilyMotion
+```
+
+## 后续场景复用
+
+场景位于 `exp2/src` 时可以直接导入：
+
+```python
+from manimlib import LEFT, RIGHT, Scene
+from pi_family import Blink, FatherPi, MotherPi, SonPi, DaughterPi
+
+class Example(Scene):
+    def construct(self):
+        father = FatherPi()
+        mother = MotherPi().shift(3 * RIGHT)
+        son = SonPi().shift(3 * LEFT)
+        daughter = DaughterPi().shift(5 * RIGHT)
+        self.add(father, mother, son, daughter)
+        self.play(mother.animate.look(LEFT))
+        self.play(Blink(mother), Blink(daughter))
+        self.play(son.animate.shift(RIGHT))
+```
+
+睫毛属于角色自身，整体移动、缩放、翻转、淡入淡出时会一起变化。
+眨眼沿用原作者的 `Blink`；女性角色的 `blink()` 同时闭合睫毛，动画结束后一起恢复。
+眼睛仍保留作者的 iris/pupil 两部件结构，视线计算使用原有眼睛边界。
+包含正常的 `plain` 姿势，以及基于它自行生成的两侧伸出、取放与持果姿势。
+表情与欢呼通过下方的 `FamilyBehavior` 接口调用。
+完整来源、改动与授权见 `SOURCES.md`。
+
+## 左手放置动作
+
+这里只改变原图左边向下弯的凸起，右侧、双腿和面部保持固定。
+完整动作约 2 秒：略抬起并伸出、轻轻放下、停顿、收回。
+四个角色使用同一动作比例，整体 `flip()` 后会在镜像方向执行。
+本预览没有视线变化或眨眼，也不加入桌子和物品。
+
+```powershell
+manimgl pi_family/preview_scene.py LeftHandPlacementDemo
+python -m pi_family.render_hand_preview
+```
+
+第二条命令在 `pi_family/preview/` 生成 `left_hand_placement.gif`、
+`hand_start.png` 和 `hand_place.png`，不需要 FFmpeg。
+
+场景中可以复用完整动作：
+
+```python
+from pi_family import FatherPi, place_left_hand
+
+pi = FatherPi()
+self.add(pi)
+place_left_hand(self, pi, run_time=2.0)
+```
+
+也可把角色组传给 `place_left_hand(self, family)`，同时播放。
+内部依次调用原作者风格的 `self.play(pi.change(mode), rate_func=smooth)`。
+角色采用固定曲线对应关系，逐帧保留未变形顶点；目标 SVG 只改左手路径，
+原来的右侧、双腿以及眼睛和嘴巴的 SVG 指令保持原样。
+
+两份目标 SVG 已随项目保存；需要重新生成时运行：
+
+```powershell
+python pi_family/hand_poses.py
+python -m pi_family.verify_hand_motion
+```
+
+## 已执行的验证
+
+- 爸爸的身体点数据与原版成人一致，妈妈的身体点数据为其 0.9 倍。
+- 两个孩子的身体、眼睛和瞳孔点数据与原版 Baby 构造结果一致。
+- 四个角色实际执行 `Blink`，闭合后恢复原点数据；女性睫毛一起闭合和恢复。
+- 睫毛随整体移动、缩放和翻转，眼睛仍为 iris/pupil 两部件。
+- 已实际渲染 1280×720 合照与 107 帧动画，并人工检查静态画面。
+- 左手动作已检查四个角色及其镜像、缩放和移动后的版本。
+  每段过渡采样 21 个时刻，非手臂身体顶点、肩部连接点、眼睛、嘴巴和睫毛
+  的点数据逐项保持完全相等；动作结束恢复普通姿势。
+- 已检查目标 SVG 的五个其他部件，以及身体路径中手臂之外的前后段保持原样。
+- 已实际渲染左手动作的 95 帧，并逐像素比较：四个左手区域之外的画面完全不变。
+  GIF 使用同一调色板，保持静止区域的颜色一致。
+
+## 持续眨眼与独立扫视
+
+```powershell
+manimgl pi_family/preview_scene.py FamilyIdleDemo
+python -m pi_family.render_idle_preview
+python -m pi_family.verify_idle_motion
+```
+
+`FamilyIdleDemo` 从开始到结束持续运行眼睛小动作，先等待 4 秒，
+再播放保留的 2 秒放置动作，随后再等待 7 秒。窗口进入交互观看后计时仍继续。
+`LeftHandPlacementDemo` 仍保留原来仅动左手的演示。
+第二条命令以固定种子 42 导出 `pi_family/preview/family_idle.gif`，便于报告复现。
+
+- 每个角色独立随机每 3–5 秒开始一次眨眼，单次 0.25 秒。
+  所有角色采用同样的闭合与恢复曲线，女性睫毛一起眨眼。
+- 爸爸、妈妈、儿子和女儿各有 3 套不同的短扫视，总共 12 套。
+  每套包含两次短暂观察并回到中间，视线间停留 0.7–1.3 秒，
+  两套扫视间休息 3–5.5 秒。孩子的瞳孔观察幅度略大。
+- 三套扫视分别打乱顺序播放，每轮都会用到全部版本。
+  四个角色各自使用独立随机流，眨眼随机流也与扫视随机流分开。
+- 眼睛动画在场景时钟上持续更新，放置动作不会停止或重新计时。
+  原有手部动作函数及两份手部 SVG 保持不变。
+
+复用时，先把角色加入场景，然后开启小动作：
+
+```python
+from pi_family import enable_idle, make_family, place_left_hand
+
+family = make_family()
+self.add(family)
+idle = enable_idle(self, family)        # 每次播放都随机
+# idle = enable_idle(self, family, seed=42)  # 报告录制时可复现
+self.wait(4)
+place_left_hand(self, family)
+self.wait(8)
+# idle.stop()  # 需要结束小动作时调用，会恢复睁眼状态
+```
+
+也可以传入单个角色。整体镜像、移动或缩放后，眼睛和睫毛会继续跟随。
+小动作开启期间由计时器控制脸部；需要手动控制视线或眨眼时，先 `idle.stop()`。
+时间范围通过 `IdleSettings` 配置，扫视方向在 `idle_motion.py` 的 `GAZE_VERSIONS` 中。
+
+验证包含每个角色 60 秒的计时、固定种子的逐帧与跳时复现、
+所有扫视版本覆盖、镜像眨眼、手部动作在闭眼时的轨迹兼容，以及计时不中断。
+额外运行原来的 `verify_hand_motion`，确认仅手部演示保持原行为。
+已实际渲染约 13 秒、392 帧的预览，检查了不同角色的眨眼、扫视及与放置动作同播；
+ManimGL 场景命令也已执行验证。
+
+## 表情、等待与取回后的庆祝
+
+本节预览展示角色行为与状态接口。尚未加入水果、桌子、盘子容量、
+进程或信号量；预览中的状态是动作示意，不能当作实验程序的执行顺序。
+
+| 角色与状态 | 行为 |
+| --- | --- |
+| 父母可操作 | 每轮独立抽一次：正常、浅笑各 50%；这一轮保持稳定 |
+| 四人阻塞等待 | 先轻微撇嘴；连续等待满 2 秒后，眼部轮廓与嘴形一起平滑变成愤怒 |
+| 儿子成功取回橘子 | 收回手以后，开心、欢呼各 50% |
+| 女儿成功取回苹果 | 收回手以后，开心、欢呼各 50% |
+| 孩子庆祝结束 | 恢复正常嘴形与手部姿势，从当前眼神接回随机扫视 |
+
+“等待”表示同步条件尚未满足：例如父母没有可用盘子位置，
+或孩子尚未取得自己需要的水果。普通停顿、动画的 `Scene.wait()` 不会自动变成等待表情。
+`ready()` 和 `waiting()` 都允许重复通知同一状态；重复通知不会重新抽表情或重启嘴形过渡。
+重复 `waiting()` 也不会重新计算 2 秒等待时间；一次等待结束后再进入等待，重新计时。
+父母通过 `parent_placed()` 开始下一轮并重新抽取，或显式调用 `ready(pi, new_round=True)`。
+
+孩子的开心使用公开收藏副本中的笑嘴；欢呼使用其张嘴笑与两侧手端上扬轮廓。
+身体曲线保持相同顶点对应关系，腿部点数据保留。颜色、Baby 眼睛比例及女性睫毛沿用现有角色。
+父母浅笑及四人的等待嘴形由本项目绘制，只替换正常 SVG 的最后一条嘴部路径。
+
+眨眼仍使用原作者的 `PiCreature.blink()` 和 `Blink`，视线目标仍由原作者的 `look()` 计算。
+孩子庆祝时从当前瞳孔位置，用 0.35 秒平滑转向手中位置；其他角色继续随机扫视。
+视线可以跟随移动的水果对象或目标函数。默认目标是现有左手上的一个定位点，预览不画水果。
+庆祝进入、停留、退出分别为 0.45、0.9、0.45 秒；嘴形过渡为 0.3 秒。
+这些时长可用 `ReactionSettings` 调整，完全不决定未来同步程序的执行顺序。
+
+眼睛与嘴形定位使用三个位于角色内部的透明点，随整体移动、缩放、镜像，
+不会根据变化中的嘴巴宽度、闭眼高度重新缩放角色。
+同一场景时钟先合成身体和嘴，再合成视线和眨眼；眨眼计时始终持续，不因庆祝重置。
+退出关注时丢弃暂停的旧扫视目标，从当前瞳孔开始下一段，不补播积压的扫视。
+
+从仓库根目录运行：
+
+```powershell
+conda activate manim
+cd exp2/src
+python pi_family/expression_assets.py
+manimgl pi_family/preview_scene.py FamilyExpressionDemo
+```
+
+下载命令读取开心、欢呼、愤怒三份固定版本的公开参考 SVG，核验 SHA-256 后保存到
+`pi_family/assets/reference/`。原始参考文件仅保存在本地缓存，不随本仓库提交；
+运行预览前需下载一次。来源与角色设计许可说明见 `SOURCES.md`。
+无需更换当前 ManimGL 环境。
+
+导出及验证：
+
+```powershell
+python -m pi_family.render_expression_preview
+python -m pi_family.verify_reactions
+```
+
+导出 `pi_family/preview/family_expressions.gif`，约 24.5 秒，736 帧，固定种子 12。
+这个种子展示父母的两种可操作表情，以及两个孩子各自的开心和欢呼；
+普通窗口预览默认不固定种子。四个角色在这个预览里采用相同的造型方向。
+
+状态接口示例：
+
+```python
+from pi_family import enable_behavior, make_family, take_left_hand
+
+family = make_family()
+self.add(family)
+behavior = enable_behavior(self, family)
+father, mother, son, daughter = family
+
+behavior.waiting(son)     # 由同步程序通知：暂时没有橘子
+behavior.ready(son)       # 由同步程序通知：已经可以取橘子
+take_left_hand(self, son)
+behavior.child_received(son, "orange")  # 默认独立随机 50/50
+# 有水果图形时：behavior.child_received(son, "orange", look_target=fruit)
+self.wait(behavior.reaction_settings.celebration_duration)
+```
+
+`enable_behavior()` 已包含持续眨眼和扫视，不需要对同一角色再次调用 `enable_idle()`。
+水果名称可用 `apple` / `orange` 或“苹果”/“橘子”；给孩子错误的水果会明确报错。
+`mode="happy"` 或 `mode="hooray"` 仅用于明确展示某一种情况，省略时保持 50/50 随机。
+已有 `place_left_hand()` 的阶段顺序、时长比例及两份目标 SVG 保留。
+
+验证涵盖：每轮抽样与重复状态通知、正确水果规则、四人仅嘴形变化、
+两个孩子在扫视途中和眨眼途中进入两种庆祝、镜像与缩放、腿部不动、
+瞳孔连续衔接、恢复随机扫视、眨眼时刻与未加表情的版本一致，以及控制器停止后的清理。
+
+## 空心水果与二维桌盘
+
+`props.py` 直接使用 ManimGL 的 `VMobject`、`Circle`、`Line` 和 `VGroup`，
+不加载或生成水果、桌盘 SVG，不依赖额外图片。
+
+| 素材 | 默认尺寸（场景单位） | 样式 |
+| --- | --- | --- |
+| `AppleOutline` | 整体高 0.45、宽约 0.40 | 默认 `RED`，完整苹果轮廓加一片空心叶子，无缺口或高光 |
+| `OrangeOutline` | 整体高 0.45、宽约 0.40 | 默认 `YELLOW`，圆形轮廓加短果梗 |
+| `SimpleTable` | 桌面宽 1.06、高 0.80、底座宽 0.72 | 默认 `GREY_B`，三条线组成工字形，桌面比原版缩短约 15% |
+| `OpenPlate` | 盘线宽 1.0 | 默认 `GREY_B`，仅一条横线，无两侧斜边 |
+
+线宽统一为 2.5，比 ManimGL 默认的 4 细，接近现有角色睫毛的 2.4。
+水果和盘子的填充透明度为 0；所有部件都位于二维平面，没有阴影、纹理或透视。
+构造器接受 `color`、`stroke_width`，水果接受 `height`，桌盘接受表内各尺寸参数。
+水果保持第一版轮廓的原始宽高比例，只做等比例缩放；橘子的果身始终为圆形。
+
+```python
+from pi_family import AppleOutline, OrangeOutline, SimpleTable, OpenPlate, make_fruit_table
+
+props = make_fruit_table()
+self.add(props)
+# 可单独访问 props.table、props.plate、props.apple、props.orange。
+# 整组可用 Manim 的 move_to、shift、scale 等方法移动和缩放。
+small_apple = AppleOutline(height=0.3, stroke_width=2.5)
+```
+
+`OpenPlate.fruit_positions()` 返回盘内两个水果的底部定位点，随盘子的移动、
+缩放和镜像变化。`make_fruit_table()` 已把橘子放在左侧、苹果放在右侧，保留间隙，
+对应儿子从左侧取橘子、女儿从右侧取苹果的后续布局。
+这些只是图形定位点；此处没有盘子容量状态、进程或信号量。
+
+桌盘宽度依据现有孩子的手长收窄：以预览的构造高度 1.25 为基准，
+放取姿势的手端比主体向外多伸约 0.30。水果恢复原比例并缩小，同时保持较低的桌高，
+使接触位置可以位于盘线上方。两个水果的横向间隙约 0.10，底部与盘线相隔约 0.036。
+接触校准使用两侧的 `hand_place` 姿势，手端高度设在盘线上方约 0.35。
+爸爸、女儿在右侧用左手接触苹果；妈妈、儿子在左侧用右手接触橘子。
+`contact_layout.make_contact_pose()` 按实际曲线计算位置，不改变手长、角色比例或桌盘、水果尺寸。
+另将高度 0.45、0.35、0.25 的水果点数据逐项与第一版等比例构造结果比较，确认轮廓与比例恢复。
+四人的造型方向保持一致。上下两排的出发位置保留为比例示意，走路见下方独立预览。
+
+从仓库根目录运行：
+
+```powershell
+conda activate manim
+cd exp2/src
+python -m pi_family.render_props_preview
+manimgl pi_family/props_scene.py FruitPropsPreview
+manimgl pi_family/props_scene.py FamilyTablePreview
+```
+
+导出以下本地预览，均由 ManimGL 实际渲染，生成文件被 Git 忽略：
+
+- `preview/fruit_props.png`：1280×720 素材图，同时展示高度 0.45、0.35、0.25 的水果。
+- `preview/family_table.png`：1280×720 四人围桌的二维比例示意。
+- `preview/family_table_small.png`：640×360 的同一构图，便于检查缩小后的辨识度。
+
+构图中爸爸、妈妈在上排，儿子、女儿在下排，桌盘居中，人物完整可见且互不遮挡。
+预览把爸爸构造高度设为 2.4、妈妈设为 2.16、孩子设为 1.25，保留已有比例，
+不更改角色类的默认尺寸或原来的动作预览。
+左侧为妈妈、儿子；右侧为爸爸、女儿，均使用靠近桌盘的手，不翻转角色。
+已检查这四个出发位置：四个角色与桌盘、水果组之间没有边界框重叠。
+
+## 四个角色的水果接触对比
+
+```powershell
+conda activate manim
+cd exp2/src
+python -m pi_family.render_contact_previews
+python -m pi_family.verify_contact_fit
+```
+
+四张图使用同一个 1280×720 画面、宽 8.2 的相机，以及完全相同的桌盘、水果位置和尺寸。
+每张只展示一个角色的接触位置，保留成人与孩子的真实相对尺寸；不是行走动画或四人同时操作。
+
+| 图片（位于本地 `preview/`） | 角色、方向与目标 | 主体至桌边最小间距 | 动作中手部至桌盘最小间距 |
+| --- | --- | --- | --- |
+| `father_contact.png` | 爸爸在右侧，原方向，放苹果 | 0.380 | 0.021 |
+| `mother_contact.png` | 妈妈在左侧，原方向，右手放橘子 | 0.648 | 0.067 |
+| `son_contact.png` | 儿子在左侧，原方向，右手取橘子 | 0.289 | 0.126 |
+| `daughter_contact.png` | 女儿在右侧，原方向，取苹果 | 0.098 | 0.053 |
+
+已逐张人工检查实际渲染。自动检查使用实际二次曲线轮廓，分别遍历放置与取回的三段姿势过渡，
+每段采样 31 个时刻，每个角色共 186 个姿势，四人共 744 个。
+验证主体保持固定、造型方向一致、手部避开桌盘直线边界与两颗水果内部，
+以及桌盘和水果的点数据保持不变。接触姿势的手部与目标轮廓间隙为 0.002，
+在预览中表现为轻触描边；桌盘距离检查同时为描边留出余量。
+这些结果对应本节尺寸与校准位置，后续改变角色大小或接近位置时应重新运行检查。
+
+## 双手、走路与携带水果
+
+四人保留同一个造型方向。左右手各有伸出 `reach`、取放 `place`、持果 `hold` 姿势，
+共享原版的肩部连接点和身体曲线对应关系；右手基于原来的右侧轮廓补画，没有镜像角色或左手。
+原有两张左手 reach/place SVG 与 `place_left_hand()`、`take_left_hand()` 的轨迹和时长比例保留。
+
+新的 `place_hand()`、`take_hand()` 用 `hand="left"` / `"right"` 指定画面中的手。
+到桌边只动选中的手，另一只手、双腿和面部不由手势动画改写；眨眼与嘴形仍可继续。
+没有水果时动作结束回到 `plain`；取到水果后结束于对应的 `hand_hold`，使水果保持在盘线上方。
+`place_right_hand()`、`take_right_hand()` 提供不含水果转移的右手简写。
+
+`WalkTo(pi, destination)` 是可传给 `self.play()` 的动画，`walk_to()` 是单角色简写。
+终点是固定的脚底中点 `standing_point(pi)`，不使用会随眨眼、伸手变化的边界框中心。
+双腿交替经历支撑与抬脚阶段，身体小幅起伏；步态按移动距离推进，起步与停步平滑收敛，
+结束时恢复精确的站立轮廓。水平往返都保持原方向，不插入翻转动作。
+`WalkSettings` 的步幅、抬脚、起伏、摆臂幅度均按身体高度设置，四种角色共用。
+支持多个不同角色同时 `self.play(WalkTo(...), WalkTo(...))`；同一角色先结束手势或庆祝再走路。
+
+`carry_fruit()` 会把正常手势提升到持果姿势，并返回 `FruitAttachment`。
+水果是独立对象，跟随实际手端，不加入角色边界框。携带时这只手不摆动，空手轻摆；
+空手行走时两侧手臂轻摆。`take_hand(..., fruit=...)` 在接触时无跳变地接住水果，
+`place_hand(..., fruit=...)` 在放置姿势松手，收手和返程不再带动已放下的水果。
+孩子庆祝时视线关注实际水果，庆祝结束恢复持果姿势；眨眼计时不重置。
+
+以下示例使用已经校准的右手接触位置，让妈妈携带橘子走近桌子并放下：
+
+```python
+from pi_family import carry_fruit, enable_behavior, hand_tip, place_hand, standing_point, walk_to
+from pi_family.contact_layout import make_contact_pose
+
+pi, props = make_contact_pose("mother")
+destination = standing_point(pi).copy()
+offset = props.orange.get_center() - hand_tip(pi, "right")
+pi.change_mode("plain").shift([-2, 0, 0])
+self.add(props, pi)
+behavior = enable_behavior(self, pi)
+carry_fruit(pi, props.orange, hand="right", offset=offset)
+walk_to(self, pi, destination, run_time=2.4)
+place_hand(self, pi, hand="right", fruit=props.orange)
+behavior.parent_placed(pi)
+```
+
+自定义桌边位置时应按放置姿势重新校准手端与水果的位置。`offset` 是手端至水果中心的位移；
+绑定后随角色的局部坐标系移动。`attachment.release()` 可主动结束跟随，且不会移动水果。
+
+从仓库根目录运行：
+
+```powershell
+conda activate manim
+cd exp2/src
+python -m pi_family.render_walking_preview
+python -m pi_family.verify_walking
+manimgl pi_family/walking_scene.py MotherWalkingDemo
+```
+
+另有 `FatherWalkingDemo`、`SonWalkingDemo`、`DaughterWalkingDemo`。
+导出 `preview/family_walking.gif`：四个角色各自走近、取放、表情衔接和返程的约 10 秒合成预览，
+四格中的桌盘各自独立；不是四进程执行顺序或盘子容量模拟。预览固定种子，并明确让儿子展示欢呼、
+女儿展示开心，正常 `child_received()` 调用仍保持独立 50/50 随机。
+`walking_start.png`、`walking_midstep.png`、`walking_arrived.png`、`walking_transferred.png`、
+`walking_celebration.png`、`walking_celebrated.png`、`walking_returned.png` 提供实际渲染的检查画面。
+
+验证覆盖两侧手势、非操作部件固定、双向迈步、抬脚与支撑脚落地、稳定的持果手和摆动的空手、
+到达终点、重复往返与原地调用、取放时水果的所有权切换、盘线间隙，以及走路期间持续眨眼和扫视。
+旧左手、眼睛、表情及四人桌边接触检查也需一起运行。
+
+## 等待后的愤怒表情素材
+
+四个角色共用同一套面部规则，依旧通过 `enable_behavior()` 返回的控制器调用。
+这里仅准备表情、切换接口和独立素材预览，没有进程、信号量、互斥锁或调度逻辑。
+等待由调用方显式通知，`self.wait()`、走路和普通停顿本身不会触发等待状态。
+
+| 表情阶段 | 默认行为 |
+| --- | --- |
+| 刚进入等待 | 0.3 秒平滑变成已有的轻微撇嘴，眼部保持正常轮廓 |
+| 本次等待持续满 2 秒 | 再用 0.4 秒同时改变眼部轮廓和嘴形，过渡到愤怒 |
+| 等待期间 | 保持原有身体、手脚和持果姿势；随机扫视与独立眨眼继续 |
+| 通知可操作 | 从当前可见表情平滑恢复，父母回到本轮正常/浅笑，孩子回到正常 |
+| 等待未满 2 秒便结束 | 取消本次愤怒触发；下次等待重新计时 |
+
+愤怒的眼部轮廓和皱嘴来自此前公开收藏仓库中的 `PiCreatures_angry.svg`，
+仅作为本地参考缓存，来源与 SHA-256 见 `SOURCES.md`。
+不把整个参考角色替换进场景；眼形按当前每只眼睛的宽度、位置适配，
+保留成人/Baby 的尺寸、瞳孔尺寸和女性的六根睫毛。眼形变化时睫毛随眼沿移动，
+瞳孔仍跟随既有扫视，并限制在变化后的眼部轮廓内；随后再合成作者的 `Blink`。
+恢复时接回原来的眼形，既有眨眼和扫视计时不重启。
+
+```python
+from pi_family import FatherPi, ReactionSettings, enable_behavior
+
+father = FatherPi()
+self.add(father)
+behavior = enable_behavior(
+    self, father,
+    settings=ReactionSettings(waiting_angry_delay=2.0, angry_duration=0.4),
+)
+behavior.prepare_angry_faces()  # 窗口播放前准备轮廓，避免首次切换时解析素材
+behavior.waiting(father)    # 素材示意：由未来的状态通知调用
+self.wait(3.0)             # 只用于本段独立预览
+behavior.ready(father)      # 无需等表情恢复完，调用方即可继续操作
+self.wait(0.6)
+```
+
+逻辑状态仍是 `waiting`；`get_expression(pi)` 在愤怒过渡开始后返回 `angry`。
+`ReactionSettings.waiting_angry_delay` 与 `angry_duration` 仅控制显示，
+不会申请/释放资源、决定执行顺序或阻止下一项动作。不要用 `pi.change("angry")`
+替换整个人物；使用上面的控制器，以合成现有眨眼、睫毛、身体姿势和手部动作。
+
+准备本地参考素材、运行独立预览和验证：
+
+```powershell
+conda activate manim
+cd exp2/src
+python pi_family/expression_assets.py
+python -m pi_family.render_angry_preview
+python -m pi_family.verify_angry
+manimgl pi_family/angry_scene.py FamilyAngryDemo
+```
+
+生成 `preview/family_angry.gif`，以及 `angry_ready.png`、`angry_waiting.png`、
+`angry_angry.png`、`angry_recovered.png`、`angry_short_wait_finished.png`，均被 Git 忽略。
+预览手动展示正常/浅笑、短暂撇嘴、持续等待后的愤怒、恢复与再次短暂等待，
+使用固定种子 12，并不模拟四进程的执行次序。
+
+验证覆盖四人、普通/两侧持果姿势、精确的 2 秒阈值与 0.4 秒过渡、短暂等待取消、
+重复通知和再次等待、恢复中断、镜像/缩放、瞳孔不越出眼形、睫毛贴合、眨眼计时不变，
+以及与原有两侧取放、持果和走路动画的兼容性。
