@@ -71,5 +71,15 @@
   留出 0.04 场景单位的间距后开始补位，无固定延时或新增手势。
 - `assets/tex/*.svg` 由 `math_assets.py` 调用 LaTeX 与 dvisvgm 生成，
   字形保留为矢量轮廓，正文使用系统中文字体；没有使用截图代替公式。
+- 中央四行信号量公式的书写参考用户指定的
+  [《拉普拉斯变换（二）：到底什么是拉普拉斯变换？》约 12–15 秒](https://www.bilibili.com/video/BV1AfqaB9Ex2/?t=12)
+  英文标题。作者对应的公开标题场景是
+  [`WriteLaplace`](https://github.com/3b1b/videos/blob/306a1346a356c7a7b097875ceb51c5cd67d0a56c/_2025/laplace/main_supplements.py#L5-L10)，
+  使用 `self.play(Write(title))`。本项目直接使用同一个 ManimGL `Write` 类及其默认
+  描边、填充、字形错开和时长规则，字形替换为本项目预编译的 TeX SVG；四个初始等式同时入场。
+  运行期间只有数字重新书写，旧数字的 0.2 秒 `FadeOut` 是用户确认的转场适配，
+  不是该标题场景原本含有的淡出。名称、等号、位置保持固定，不使用数字轮廓变形。
+  `semaphore_empty.svg`、`semaphore_apple.svg`、`semaphore_orange.svg`、`semaphore_mutex.svg`
+  是本项目用 LaTeX 生成的新公式素材，未提取或复用视频中的标题字形。
 - 本地完整源码包包含运行必需的三个参考表情 SVG，并保留原有素材与代码的许可文件。
   预览、个人报告、进程记录及环境路径不包含在源码包中。

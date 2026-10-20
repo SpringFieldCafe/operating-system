@@ -9,6 +9,8 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent / "assets" / "tex"
 FORMULAS = {"0": "digit_0", "1": "digit_1", "2": "digit_2", "e=": "empty", "a=": "apple", "o=": "orange",
+            **{rf"\mathrm{{{name}}}={value}": "semaphore_" + name
+               for name, value in (("empty", 2), ("apple", 0), ("orange", 0), ("mutex", 1))},
             **{f"{operation}({symbol})": f"{operation}_{symbol}" for operation in ("P", "V") for symbol in ("e", "a", "o", "m")}}
 
 
@@ -32,9 +34,9 @@ def build():
                                     cwd=base, capture_output=True, timeout=30)
             if result.returncode:
                 raise RuntimeError("dvisvgm failed: " + result.stderr.decode(errors="replace")[-1000:])
-            svg = result.stdout.decode("utf-8")
+            svg = result.stdout.decode("utf-8").replace("\r\n", "\n")
             ET.fromstring(svg)
-            (ROOT / (filename + ".svg")).write_text(svg, encoding="utf-8")
+            (ROOT / (filename + ".svg")).write_text(svg, encoding="utf-8", newline="\n")
             print("Compiled TeX:", formula, flush=True)
 
 

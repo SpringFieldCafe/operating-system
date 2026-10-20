@@ -13,7 +13,7 @@ from manimlib.event_keys import Mods
 from manimlib.scene.scene import EndScene
 from manimlib.scene.scene_embed import InteractiveSceneEmbed
 from fruit_lab.controller import LabController
-from fruit_lab.diagnostics import failure_summary, record_failure
+from fruit_lab.diagnostics import record_failure
 from fruit_lab.windowing import DEFAULT_CLIENT_SIZE, FRAME_WIDTH, FixedWindow
 
 
@@ -29,6 +29,11 @@ class _LiveEmbed(InteractiveSceneEmbed):
         """
         if self.shell.simple_prompt:
             raise RuntimeError("Use an interactive terminal with prompt_toolkit, not IPython simple-prompt mode.")
+        # Keep the prompt, history suggestions and completion without result text.
+        self.shell.ast_node_interactivity = "none"
+        self.shell.separate_in = ""
+        self.shell.confirm_exit = False
+        self.shell.exit_msg = ""
         self.shell.pt_app._output = self.shell.pt_app.output
         prompt = self.shell.pt_app.prompt
         app = self.shell.pt_app.app
@@ -68,9 +73,19 @@ class _LiveEmbed(InteractiveSceneEmbed):
         # An invalid command is recoverable. Upstream flashes a red border by
         # rendering more frames, which is inappropriate for a hidden window.
         def command_error(shell, etype, value, tb, tb_offset=None):
-            print(f"命令未执行：{etype.__name__}: {value}")
+            record_failure(value)
 
         self.shell.set_custom_exc((Exception,), command_error)
+
+        def quiet_error(*args, **kwargs):
+            exc = sys.exc_info()[1]
+            if exc is not None:
+                record_failure(exc)
+
+        # Syntax and IPython usage errors bypass the custom exception handler.
+        self.shell.showtraceback = quiet_error
+        self.shell.showsyntaxerror = quiet_error
+        self.shell.show_usage_error = lambda exc: record_failure(exc)
 
 
 class FruitLabScene(Scene):
@@ -109,7 +124,6 @@ class FruitLabScene(Scene):
             self._live_clock = True
             self._last_wall_time = time.perf_counter()
             self.update_frame(force_draw=True)
-            help_cmds()
             self.embed()
         except EndScene:
             raise
@@ -160,17 +174,12 @@ class FruitLabScene(Scene):
         self._fatal_error_reported = True
         self._live_clock = False
         self.quit_interaction = True
-        saved = record_failure(exc)
+        record_failure(exc)
         if hasattr(self, "lab"):
             try:
                 self.lab.close()
             except Exception as cleanup_error:
-                saved = record_failure(cleanup_error) and saved
-        cleaned_up = not hasattr(self, "lab") or self.lab.closed
-        message = f"实验遇到错误，已结束（{failure_summary(exc)}）。"
-        message += "已回收工作进程。" if cleaned_up else "进程回收遇到错误，请查看本地诊断。"
-        message += "详细诊断见 exp2/report/fruit_lab_error.log。" if saved else "本地诊断日志写入失败。"
-        print(message)
+                record_failure(cleanup_error)
 
     def on_mouse_motion(self, point, d_point):
         self.mouse_point.move_to(point)
