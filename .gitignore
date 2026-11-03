@@ -3,6 +3,8 @@
 /.privacy-review/
 /private/
 /secrets/
+/agent.markdown
+/AGENTS.md
 *.original.*
 *.backup.*
 *.bak
